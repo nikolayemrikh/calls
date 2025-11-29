@@ -1,0 +1,52 @@
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+
+# Swap the comments on the following lines if you wish to use zero-installs
+# In that case, don't forget to run `yarn config set enableGlobalCache false`!
+# Documentation here: https://yarnpkg.com/features/caching#zero-installs
+
+#!.yarn/cache
+.pnp.*
+
+node_modules
+**/dist
+**/tsconfig.tsbuildinfo
+# @TODO ВРЕМЕННО
+# **/__generated__
+# Supabase
+
+packages/supabase/.branches
+packages/supabase/.temp/**
+**/.env.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+
+.env.tokens
+
+supabase
+src/rpc-types/*
+src/supabase-db.types.ts
+!src/rpc-types/.gitkeep
