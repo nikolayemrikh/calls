@@ -23,11 +23,6 @@ RUN echo "VITE_TURN_SERVER_CREDENTIAL=${VITE_TURN_SERVER_CREDENTIAL}" >> .env
 RUN echo "VITE_PEERJS_SERVER_HOST=${VITE_PEERJS_SERVER_HOST}" >> .env
 RUN echo "VITE_PEERJS_SERVER_PORT=${VITE_PEERJS_SERVER_PORT}" >> .env
 
-RUN mkdir -p src/rpc-types && \
-    curl -L -k --fail "${VITE_API_URL}/types" -o project.zip && \
-    unzip -o project.zip -d src/rpc-types && \
-    rm project.zip
-
 RUN npx supabase gen types --lang typescript --project-id ${SUPABASE_PROJECT_ID} > src/supabase-db.types.ts
 
 RUN npm run build
