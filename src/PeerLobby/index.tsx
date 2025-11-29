@@ -72,7 +72,7 @@ export const PeerLobby: FC = () => {
                     >
                       <Typography variant="body1">Придумайте юзернейм</Typography>
                       <TextField
-                        autoCapitalize="off"
+                        autoCapitalize="none"
                         value={currentUsername}
                         onChange={(e) => setCurrentUsername(e.target.value)}
                       />
