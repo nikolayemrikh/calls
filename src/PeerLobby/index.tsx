@@ -109,8 +109,8 @@ export const PeerLobby: FC = () => {
                   value={peerUsername}
                   onChange={(e) => setPeerUsername(e.target.value)}
                   placeholder="Юзернейм"
-                  helperText={username === peerUsername && 'Введите юзернейм собеседника, а не свой'}
-                  error={username === peerUsername}
+                  helperText={!!username && username === peerUsername && 'Введите юзернейм собеседника, а не свой'}
+                  error={!!username && username === peerUsername}
                 />
                 <Button
                   variant="contained"
