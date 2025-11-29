@@ -31,8 +31,6 @@ node_modules
 # **/__generated__
 # Supabase
 
-packages/supabase/.branches
-packages/supabase/.temp/**
 **/.env.local
 
 # Logs

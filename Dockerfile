@@ -23,8 +23,6 @@ RUN echo "VITE_TURN_SERVER_CREDENTIAL=${VITE_TURN_SERVER_CREDENTIAL}" >> .env
 RUN echo "VITE_PEERJS_SERVER_HOST=${VITE_PEERJS_SERVER_HOST}" >> .env
 RUN echo "VITE_PEERJS_SERVER_PORT=${VITE_PEERJS_SERVER_PORT}" >> .env
 
-RUN npx supabase gen types --lang typescript --project-id ${SUPABASE_PROJECT_ID} > src/supabase-db.types.ts
-
 RUN npm run build
 
 FROM base AS final
