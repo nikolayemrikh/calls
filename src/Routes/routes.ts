@@ -1,5 +1,5 @@
 export const routes = {
   lobby: '/',
   chat: '/chat',
-  video: '/video',
+  call: '/call',
 } as const;

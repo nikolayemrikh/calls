@@ -12,7 +12,7 @@ export const Routes: FC = () => {
     <RouterRoutes>
       <Route path={routes.lobby} element={<PeerLobby />} />
       <Route path={`${routes.chat}/:id`} element={<PeerChat />} />
-      <Route path={`${routes.video}/:id`} element={<PeerVideo />} />
+      <Route path={`${routes.call}/:username`} element={<PeerVideo />} />
     </RouterRoutes>
   );
 };
