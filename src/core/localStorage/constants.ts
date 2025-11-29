@@ -6,4 +6,5 @@ export const ELocalStorageKey = {
   PrivateKey: 'private_key',
   Chats: 'chats',
   VideoRooms: 'video_rooms',
+  PreviousCallsUsernames: 'prev_calls_usernames',
 } as const;

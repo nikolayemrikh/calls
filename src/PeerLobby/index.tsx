@@ -4,21 +4,34 @@ import {} from '@app/core/crypto/keyManagement';
 import { ELocalStorageKey } from '@app/core/localStorage/constants';
 import {} from '@app/core/peer/types';
 import { Button, Card, Stack, TextField, Typography } from '@mui/material';
-import { FC, useState } from 'react';
+import { FC, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { match } from 'ts-pattern';
+
+const getPreviousCallsUsernames = (): string[] => {
+  return JSON.parse(localStorage.getItem(ELocalStorageKey.PreviousCallsUsernames) ?? '[]');
+};
 
 export const PeerLobby: FC = () => {
   const navigate = useNavigate();
 
+  const previousCallsUsernames = useMemo(() => getPreviousCallsUsernames(), []);
   const [username, setUsername] = useState(localStorage.getItem(ELocalStorageKey.Username) ?? '');
   const [isChangingUsername, setIsChangingUsername] = useState(false);
   const [currentUsername, setCurrentUsername] = useState(username);
   const [peerUsername, setPeerUsername] = useState('');
 
+  const handleCallSubmit = () => {
+    navigate(routes.call + '/' + peerUsername);
+    localStorage.setItem(
+      ELocalStorageKey.PreviousCallsUsernames,
+      JSON.stringify([...previousCallsUsernames, peerUsername])
+    );
+  };
+
   return (
     <PageMain>
-      <Stack direction="column" flexGrow={1} alignItems="center" justifyContent="center">
+      <Stack direction="column" flexGrow={1} gap={4} alignItems="center" justifyContent="center">
         <Stack direction="row" justifyContent="center" width="100%">
           <Card sx={{ padding: 4, flexBasis: 500 }}>
             <Stack direction="column" gap={2}>
@@ -82,7 +95,15 @@ export const PeerLobby: FC = () => {
                   );
                 })}
 
-              <Stack direction="column" gap={2}>
+              <Stack
+                direction="column"
+                gap={2}
+                component="form"
+                onSubmit={(evt) => {
+                  evt.preventDefault();
+                  handleCallSubmit();
+                }}
+              >
                 <Typography variant="body1">Звонок пользователю</Typography>
                 <TextField
                   value={peerUsername}
@@ -95,7 +116,7 @@ export const PeerLobby: FC = () => {
                   variant="contained"
                   disabled={!peerUsername || username === peerUsername}
                   onClick={() => {
-                    navigate(routes.call + '/' + peerUsername);
+                    handleCallSubmit();
                   }}
                 >
                   Позвонить
@@ -107,6 +128,38 @@ export const PeerLobby: FC = () => {
                 <Typography variant="body2" textAlign="center">
                   Собеседник должен ввести ваш юзернейм <br /> и тоже нажать "Позвонить"
                 </Typography>
+              </Stack>
+            </Stack>
+          </Card>
+        </Stack>
+
+        <Stack direction="row" justifyContent="center" width="100%">
+          <Card sx={{ padding: 4, flexBasis: 500 }}>
+            <Stack direction="column" gap={2}>
+              <Typography variant="h2">Предыдущие вызовы</Typography>
+
+              <Stack direction="column" gap={2}>
+                {previousCallsUsernames.map((previousCallUsername) => {
+                  return (
+                    <Stack
+                      key={previousCallUsername}
+                      direction="row"
+                      alignItems="center"
+                      justifyContent="space-between"
+                      gap={2}
+                    >
+                      <Typography variant="body1">{previousCallUsername}</Typography>
+                      <Button
+                        variant="outlined"
+                        onClick={() => {
+                          navigate(routes.call + '/' + previousCallUsername);
+                        }}
+                      >
+                        Позвонить
+                      </Button>
+                    </Stack>
+                  );
+                })}
               </Stack>
             </Stack>
           </Card>
