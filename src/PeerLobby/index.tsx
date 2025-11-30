@@ -109,6 +109,7 @@ export const PeerLobby: FC = () => {
                   value={peerUsername}
                   onChange={(e) => setPeerUsername(e.target.value.toLowerCase())}
                   placeholder="Юзернейм"
+                  autoCapitalize="none"
                   helperText={!!username && username === peerUsername && 'Введите юзернейм собеседника, а не свой'}
                   error={!!username && username === peerUsername}
                 />
