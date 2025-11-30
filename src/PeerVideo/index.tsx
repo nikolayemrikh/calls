@@ -169,6 +169,7 @@ export const PeerVideo: FC = () => {
           ref={loopbackVideoRef}
           autoPlay
           playsInline
+          muted
           style={{ width: 100, height: 100, position: 'absolute', bottom: 10, left: 10 }}
         />
       </Stack>
