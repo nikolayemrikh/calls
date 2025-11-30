@@ -1,9 +1,11 @@
 import { ELocalStorageKey } from '@app/core/localStorage/constants';
 import { getPeerId } from '@app/core/peer/getPeerId';
-import { Stack } from '@mui/material';
+import { Button, Card, Stack, Typography } from '@mui/material';
+import copy from 'copy-to-clipboard';
 import Peer, { MediaConnection } from 'peerjs';
-import { FC, useCallback, useEffect, useRef, useState } from 'react';
+import { FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { v7 as uuid } from 'uuid';
 
 const PAGE_PREFIX = 'peer-chat';
 
@@ -11,29 +13,40 @@ export const PeerVideo: FC = () => {
   const { username: otherUsername } = useParams();
   if (!otherUsername) throw new Error('otherUsername is required');
 
-  const username = localStorage.getItem(ELocalStorageKey.Username);
+  const username = useMemo(() => {
+    const storedUsername = localStorage.getItem(ELocalStorageKey.Username);
+    if (storedUsername) return storedUsername;
+    const randomUsername = uuid();
+    localStorage.setItem(ELocalStorageKey.Username, randomUsername);
+    return randomUsername;
+  }, []);
   if (!username) throw new Error('username is required');
 
   const [peer, setPeer] = useState<Peer | null>(null);
 
+  const [isOtherUserConnected, setIsOtherUserConnected] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const loopbackVideoRef = useRef<HTMLVideoElement>(null);
   const handleNewConnection = useCallback((connection: MediaConnection) => {
     connection.on('stream', (stream) => {
       console.debug('connection stream', connection.peer);
       videoRef.current!.srcObject = stream;
+      setIsOtherUserConnected(true);
     });
     connection.on('close', () => {
       if (videoRef.current) {
         videoRef.current.srcObject = null;
       }
       console.debug('connection closed', connection.peer);
+      setIsOtherUserConnected(false);
     });
     connection.on('error', () => {
       if (videoRef.current) {
         videoRef.current.srcObject = null;
       }
       console.debug('connection error', connection.peer);
+      setIsOtherUserConnected(false);
     });
   }, []);
 
@@ -93,12 +106,16 @@ export const PeerVideo: FC = () => {
         },
         audio: true,
       });
+      if (loopbackVideoRef.current) {
+        loopbackVideoRef.current.srcObject = ms;
+      }
       setMediaStream(ms);
     })();
   }, []);
 
   useEffect(() => {
     if (!peer || !mediaStream) return;
+    if (username === otherUsername) return;
 
     const timer = window.setTimeout(() => {
       const connectionId = getPeerId(PAGE_PREFIX, otherUsername);
@@ -111,7 +128,7 @@ export const PeerVideo: FC = () => {
     return () => {
       window.clearTimeout(timer);
     };
-  }, [peer, mediaStream, otherUsername, handleNewConnection]);
+  }, [peer, mediaStream, otherUsername, username, handleNewConnection]);
 
   const [width, setWidth] = useState(0);
   const [height, setHeight] = useState(0);
@@ -145,10 +162,53 @@ export const PeerVideo: FC = () => {
   }, [changeSize]);
 
   return (
-    <Stack direction="column" flexGrow={1} gap={2} height="100%">
-      <Stack direction="column" gap={1} flexGrow={1} ref={containerRef}>
+    <Stack direction="column" flexGrow={1} gap={2} height="100%" position="relative">
+      <Stack direction="column" width="100%" height="100%" ref={containerRef} position="absolute" zIndex={1}>
         <video ref={videoRef} autoPlay playsInline style={{ width, height }} />
+        <video
+          ref={loopbackVideoRef}
+          autoPlay
+          playsInline
+          style={{ width: 100, height: 100, position: 'absolute', bottom: 10, left: 10 }}
+        />
       </Stack>
+
+      {!isOtherUserConnected && (
+        <Stack
+          direction="column"
+          flexGrow={1}
+          gap={4}
+          alignItems="center"
+          justifyContent="center"
+          zIndex={2}
+          padding={2}
+        >
+          <Stack direction="row" justifyContent="center" width="100%">
+            <Card sx={{ padding: 4, flexBasis: 500 }}>
+              <Stack direction="column" gap={2}>
+                <Typography variant="body2" textAlign="center" textOverflow="ellipsis">
+                  {window.location.href}
+                </Typography>
+                <Button
+                  variant="contained"
+                  size="large"
+                  onClick={() => {
+                    copy(window.location.href);
+                  }}
+                >
+                  Скопировать ссылку
+                </Button>
+                <Typography variant="body2" textAlign="center">
+                  Нажмите скопировать ссылку и поделитесь ею с собеседником
+                </Typography>
+                <Typography variant="body2" textAlign="center">
+                  Затем дождитесь его подключения здесь
+                </Typography>
+              </Stack>
+            </Card>
+          </Stack>
+        </Stack>
+      )}
     </Stack>
   );
 };
