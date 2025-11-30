@@ -74,7 +74,7 @@ export const PeerLobby: FC = () => {
                       <TextField
                         autoCapitalize="none"
                         value={currentUsername}
-                        onChange={(e) => setCurrentUsername(e.target.value)}
+                        onChange={(e) => setCurrentUsername(e.target.value.toLowerCase())}
                       />
                       <Stack direction="row" alignItems="center" gap={2}>
                         <Button type="submit" variant="contained" fullWidth>
@@ -107,7 +107,7 @@ export const PeerLobby: FC = () => {
                 <Typography variant="body1">Звонок пользователю</Typography>
                 <TextField
                   value={peerUsername}
-                  onChange={(e) => setPeerUsername(e.target.value)}
+                  onChange={(e) => setPeerUsername(e.target.value.toLowerCase())}
                   placeholder="Юзернейм"
                   helperText={!!username && username === peerUsername && 'Введите юзернейм собеседника, а не свой'}
                   error={!!username && username === peerUsername}
