@@ -73,6 +73,8 @@ export const PeerLobby: FC = () => {
                       <Typography variant="body1">Придумайте юзернейм</Typography>
                       <TextField
                         autoCapitalize="none"
+                        autoCorrect="off"
+                        autoComplete="off"
                         value={currentUsername}
                         onChange={(e) => setCurrentUsername(e.target.value.toLowerCase())}
                       />
@@ -110,6 +112,8 @@ export const PeerLobby: FC = () => {
                   onChange={(e) => setPeerUsername(e.target.value.toLowerCase())}
                   placeholder="Юзернейм"
                   autoCapitalize="none"
+                  autoCorrect="off"
+                  autoComplete="off"
                   helperText={!!username && username === peerUsername && 'Введите юзернейм собеседника, а не свой'}
                   error={!!username && username === peerUsername}
                 />
