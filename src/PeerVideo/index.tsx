@@ -113,23 +113,19 @@ export const PeerVideo: FC = () => {
     };
   }, [peer, mediaStream, otherUsername, handleNewConnection]);
 
-  // const [width, setWidth] = useState(0);
+  const [width, setWidth] = useState(0);
   const [height, setHeight] = useState(0);
 
   const changeSize = useCallback((container: HTMLDivElement) => {
-    const {
-      //  width: containerWidth,
-      height: containerHeight,
-    } = container.getBoundingClientRect();
+    const { width: containerWidth, height: containerHeight } = container.getBoundingClientRect();
 
-    // const containerAspect = containerWidth / containerHeight;
-
-    // let width: number;
+    let width: number;
     let height: number;
 
+    width = containerWidth;
     height = containerHeight;
 
-    // setWidth(width);
+    setWidth(width);
     setHeight(height);
   }, []);
 
@@ -151,7 +147,7 @@ export const PeerVideo: FC = () => {
   return (
     <Stack direction="column" flexGrow={1} gap={2} height="100%">
       <Stack direction="column" gap={1} flexGrow={1} ref={containerRef}>
-        <video ref={videoRef} autoPlay playsInline style={{ width: '100%', height }} />
+        <video ref={videoRef} autoPlay playsInline style={{ width, height }} />
       </Stack>
     </Stack>
   );
