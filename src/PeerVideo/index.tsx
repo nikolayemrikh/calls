@@ -16,8 +16,8 @@ export const PeerVideo: FC = () => {
 
   const [peer, setPeer] = useState<Peer | null>(null);
 
+  const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const scrollableRootRef = useRef<HTMLDivElement>(null);
   const handleNewConnection = useCallback((connection: MediaConnection) => {
     connection.on('stream', (stream) => {
       console.debug('connection stream', connection.peer);
@@ -113,12 +113,45 @@ export const PeerVideo: FC = () => {
     };
   }, [peer, mediaStream, otherUsername, handleNewConnection]);
 
+  // const [width, setWidth] = useState(0);
+  const [height, setHeight] = useState(0);
+
+  const changeSize = useCallback((container: HTMLDivElement) => {
+    const {
+      //  width: containerWidth,
+      height: containerHeight,
+    } = container.getBoundingClientRect();
+
+    // const containerAspect = containerWidth / containerHeight;
+
+    // let width: number;
+    let height: number;
+
+    height = containerHeight;
+
+    // setWidth(width);
+    setHeight(height);
+  }, []);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const container = containerRef.current;
+    changeSize(container);
+
+    const observer = new ResizeObserver(() => {
+      changeSize(container);
+    });
+
+    observer.observe(container);
+
+    return () => observer.disconnect();
+  }, [changeSize]);
+
   return (
     <Stack direction="column" flexGrow={1} gap={2} height="100%">
-      <Stack direction="column" gap={1} flexGrow={1} overflow="auto" ref={scrollableRootRef}>
-        <Stack direction="column" gap={1}>
-          <video ref={videoRef} style={{ flexGrow: 1, width: '100%' }} autoPlay playsInline />
-        </Stack>
+      <Stack direction="column" gap={1} flexGrow={1} ref={containerRef}>
+        <video ref={videoRef} autoPlay playsInline style={{ width: '100%', height }} />
       </Stack>
     </Stack>
   );
