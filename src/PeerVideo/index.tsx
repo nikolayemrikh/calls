@@ -1,3 +1,4 @@
+import { ELocalStorageKey } from '@app/core/localStorage/constants';
 import { getPeerId } from '@app/core/peer/getPeerId';
 import { Stack } from '@mui/material';
 import Peer, { MediaConnection } from 'peerjs';
@@ -7,8 +8,10 @@ import { useParams } from 'react-router-dom';
 const PAGE_PREFIX = 'peer-chat';
 
 export const PeerVideo: FC = () => {
-  const { username } = useParams();
+  const { username: otherUsername } = useParams();
+  if (!otherUsername) throw new Error('otherUsername is required');
 
+  const username = localStorage.getItem(ELocalStorageKey.Username);
   if (!username) throw new Error('username is required');
 
   const [peer, setPeer] = useState<Peer | null>(null);
@@ -98,7 +101,7 @@ export const PeerVideo: FC = () => {
     if (!peer || !mediaStream) return;
 
     const timer = window.setTimeout(() => {
-      const connectionId = getPeerId(PAGE_PREFIX, username);
+      const connectionId = getPeerId(PAGE_PREFIX, otherUsername);
       const connection: MediaConnection | undefined = peer.call(connectionId, mediaStream); // could be undefined if peer is destroyed
       if (!connection) throw new Error('no connection created');
       console.debug('connection created', connection.peer);
@@ -108,7 +111,7 @@ export const PeerVideo: FC = () => {
     return () => {
       window.clearTimeout(timer);
     };
-  }, [peer, mediaStream, username, handleNewConnection]);
+  }, [peer, mediaStream, otherUsername, handleNewConnection]);
 
   return (
     <Stack direction="column" flexGrow={1} gap={2} height="100%">
