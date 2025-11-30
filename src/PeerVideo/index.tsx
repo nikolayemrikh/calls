@@ -173,7 +173,7 @@ export const PeerVideo: FC = () => {
         />
       </Stack>
 
-      {!isOtherUserConnected && (
+      {!isOtherUserConnected && username === otherUsername && (
         <Stack
           direction="column"
           flexGrow={1}
