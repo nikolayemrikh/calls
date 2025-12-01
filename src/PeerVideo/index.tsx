@@ -170,7 +170,7 @@ export const PeerVideo: FC = () => {
           autoPlay
           playsInline
           muted
-          style={{ width: 100, height: 100, position: 'absolute', bottom: 10, left: 10 }}
+          style={{ width: 100, height: 100, position: 'absolute', bottom: 10, left: 10, transform: 'scaleX(-1)' }}
         />
       </Stack>
 
