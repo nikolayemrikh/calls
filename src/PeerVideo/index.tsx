@@ -127,7 +127,7 @@ export const PeerVideo: FC = () => {
     }, Math.random() * 1000);
 
     return () => {
-      window.clearTimeout(timer);
+      window.clearInterval(timer);
     };
   }, [peer, mediaStream, otherUsername, username, handleNewConnection, isOtherUserConnected]);
 
