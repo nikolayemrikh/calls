@@ -117,8 +117,7 @@ export const PeerVideo: FC = () => {
     if (!peer || !mediaStream) return;
     if (username === otherUsername) return;
 
-    const timer = window.setInterval(() => {
-      if (isOtherUserConnected) return;
+    const timer = window.setTimeout(() => {
       const connectionId = getPeerId(PAGE_PREFIX, otherUsername);
       const connection: MediaConnection | undefined = peer.call(connectionId, mediaStream); // could be undefined if peer is destroyed
       if (!connection) throw new Error('no connection created');
@@ -127,9 +126,9 @@ export const PeerVideo: FC = () => {
     }, Math.random() * 1000);
 
     return () => {
-      window.clearInterval(timer);
+      window.clearTimeout(timer);
     };
-  }, [peer, mediaStream, otherUsername, username, handleNewConnection, isOtherUserConnected]);
+  }, [peer, mediaStream, otherUsername, username, handleNewConnection]);
 
   const [width, setWidth] = useState(0);
   const [height, setHeight] = useState(0);
