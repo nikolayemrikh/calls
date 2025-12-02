@@ -10,17 +10,16 @@ import { v7 as uuid } from 'uuid';
 const PAGE_PREFIX = 'peer-chat';
 
 export const PeerVideo: FC = () => {
-  const { username: otherUsername } = useParams();
-  if (!otherUsername) throw new Error('otherUsername is required');
+  const { username: hostUsername } = useParams();
+  if (!hostUsername) throw new Error('hostUsername is required');
 
-  const username = useMemo(() => {
+  const currentUsername = useMemo(() => {
     const storedUsername = localStorage.getItem(ELocalStorageKey.Username);
     if (storedUsername) return storedUsername;
     const randomUsername = uuid();
     localStorage.setItem(ELocalStorageKey.Username, randomUsername);
     return randomUsername;
   }, []);
-  if (!username) throw new Error('username is required');
 
   const [peer, setPeer] = useState<Peer | null>(null);
 
@@ -51,10 +50,14 @@ export const PeerVideo: FC = () => {
   }, []);
 
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
+  useEffect(() => {
+    if (!loopbackVideoRef.current) throw new Error('loopbackVideoRef.current should be defined');
+    loopbackVideoRef.current.srcObject = mediaStream;
+  }, [mediaStream]);
 
   useEffect(() => {
     if (!mediaStream) return;
-    const peer = new Peer(getPeerId(PAGE_PREFIX, username), {
+    const peer = new Peer(getPeerId(PAGE_PREFIX, currentUsername), {
       host: import.meta.env.VITE_PEERJS_SERVER_HOST,
       port: Number(import.meta.env.VITE_PEERJS_SERVER_PORT),
       secure: true,
@@ -78,6 +81,9 @@ export const PeerVideo: FC = () => {
       connection.answer(mediaStream);
       handleNewConnection(connection);
     });
+    // peer.on('error', () => {
+    //   peer.reconnect();
+    // });
     peer.on('disconnected', (connectionId) => {
       console.debug('disconnected', connectionId);
     });
@@ -91,44 +97,76 @@ export const PeerVideo: FC = () => {
       peer.destroy();
       setPeer(null);
     };
-  }, [username, mediaStream, handleNewConnection]);
+  }, [currentUsername, mediaStream, handleNewConnection]);
 
   useEffect(() => {
-    (async () => {
-      const ms = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { min: 1280, ideal: 1920, max: 2560 },
-          height: { min: 720, ideal: 1080, max: 1440 },
-          frameRate: { ideal: 60 }, // высокая частота кадров
-          facingMode: 'user', // или "environment" для задней камеры
-          // aspectRatio: { ideal: 16 / 9 },
-          // advanced: [{ exposureMode: 'manual' }, { focusMode: 'continuous' }, { whiteBalanceMode: 'continuous' }],
-        },
-        audio: true,
-      });
-      if (loopbackVideoRef.current) {
-        loopbackVideoRef.current.srcObject = ms;
+    let isCleaned = false;
+    let isRequestMediaRunning = false;
+
+    const requestMedia = async () => {
+      if (isRequestMediaRunning) return;
+      isRequestMediaRunning = true;
+      let ms: MediaStream | undefined;
+      try {
+        ms = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { min: 1280, ideal: 1920, max: 2560 },
+            height: { min: 720, ideal: 1080, max: 1440 },
+            frameRate: { ideal: 60 }, // высокая частота кадров
+            facingMode: 'user', // или "environment" для задней камеры
+            // aspectRatio: { ideal: 16 / 9 },
+            // advanced: [{ exposureMode: 'manual' }, { focusMode: 'continuous' }, { whiteBalanceMode: 'continuous' }],
+          },
+          audio: true,
+        });
+      } catch {
+        isRequestMediaRunning = false;
+        return;
       }
+      isRequestMediaRunning = false;
+      if (isCleaned || !ms) return;
       setMediaStream(ms);
-    })();
+      window.clearInterval(interval);
+    };
+
+    requestMedia();
+
+    const interval = window.setInterval(requestMedia, 1000);
+
+    return () => {
+      isCleaned = true;
+      window.clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
     if (!peer || !mediaStream) return;
-    if (username === otherUsername) return;
+    if (currentUsername === hostUsername) return;
+    if (isOtherUserConnected) return;
 
-    const timer = window.setTimeout(() => {
-      const connectionId = getPeerId(PAGE_PREFIX, otherUsername);
+    const connectionId = getPeerId(PAGE_PREFIX, hostUsername);
+
+    let isConnectionCreated = false;
+    const callHost = () => {
+      if (!peer.open) return;
       const connection: MediaConnection | undefined = peer.call(connectionId, mediaStream); // could be undefined if peer is destroyed
-      if (!connection) throw new Error('no connection created');
-      console.debug('connection created', connection.peer);
+      if (!connection) return;
+
+      isConnectionCreated = true;
       handleNewConnection(connection);
-    }, Math.random() * 1000);
+      console.debug('connection created', connection.peer);
+    };
+    callHost();
+
+    const timer = window.setInterval(() => {
+      if (!isConnectionCreated) return;
+      callHost();
+    }, 1000);
 
     return () => {
       window.clearTimeout(timer);
     };
-  }, [peer, mediaStream, otherUsername, username, handleNewConnection]);
+  }, [peer, mediaStream, hostUsername, currentUsername, handleNewConnection, isOtherUserConnected]);
 
   const [width, setWidth] = useState(0);
   const [height, setHeight] = useState(0);
@@ -174,7 +212,7 @@ export const PeerVideo: FC = () => {
         />
       </Stack>
 
-      {!isOtherUserConnected && username === otherUsername && (
+      {!isOtherUserConnected && currentUsername === hostUsername && (
         <Stack
           direction="column"
           flexGrow={1}

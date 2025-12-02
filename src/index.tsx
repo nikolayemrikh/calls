@@ -1,3 +1,4 @@
+import './init-sentry';
 import { createRoot } from 'react-dom/client';
 import 'normalize.css';
 
