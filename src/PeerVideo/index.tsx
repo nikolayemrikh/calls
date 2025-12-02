@@ -159,7 +159,7 @@ export const PeerVideo: FC = () => {
     callHost();
 
     const timer = window.setInterval(() => {
-      if (!isConnectionCreated) return;
+      if (isConnectionCreated) return;
       callHost();
     }, 1000);
 
