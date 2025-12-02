@@ -58,53 +58,97 @@ export const PeerVideo: FC = () => {
   useEffect(() => {
     if (!mediaStream) return;
 
-    const peer = new Peer(getPeerId(PAGE_PREFIX, currentUsername), {
-      host: import.meta.env.VITE_PEERJS_SERVER_HOST,
-      port: Number(import.meta.env.VITE_PEERJS_SERVER_PORT),
-      secure: true,
-      config: {
-        iceServers: [
-          { url: 'stun:stun.l.google.com:19302' },
-          {
-            url: `turn:${import.meta.env.VITE_TURN_SERVER_HOST}:${import.meta.env.VITE_TURN_SERVER_PORT}`,
-            username: import.meta.env.VITE_TURN_SERVER_USERNAME,
-            credential: import.meta.env.VITE_TURN_SERVER_CREDENTIAL,
-          },
-        ],
-      },
-    });
-    peer.on('open', () => {
-      console.debug('peer opened', peer.id);
-      setPeer(peer);
-    });
+    let recreateInterval: number | null = null;
+    const startRecreate = () => {
+      if (recreateInterval) return;
+      recreateInterval = window.setInterval(() => {
+        if (currentPeer) return;
+        console.debug('Trying to recreate peer');
+        currentPeer = createPeer();
+      }, 1000);
+    };
+    const stopRecreate = () => {
+      if (!recreateInterval) return;
+      clearInterval(recreateInterval);
+      recreateInterval = null;
+    };
 
-    peer.on('call', (connection) => {
-      console.debug('connection received', connection.peer);
-      connection.answer(mediaStream);
-      handleNewConnection(connection);
-    });
-    peer.on('error', (error) => {
-      console.debug('error', error);
-      setPeer(null);
-      peer.destroy();
-    });
-    peer.on('disconnected', (connectionId) => {
-      console.debug('disconnected', connectionId);
-      setPeer(null);
-      peer.destroy();
-    });
-    peer.on('close', () => {
-      console.debug('closed');
-      setPeer(null);
-    });
+    let currentPeer: Peer | null = null;
 
-    window.addEventListener('beforeunload', () => {
-      peer.destroy();
+    const failPeer = (peer: Peer) => {
       setPeer(null);
-    });
+      try {
+        peer.destroy();
+      } catch {
+        //
+      }
+
+      currentPeer = null;
+      startRecreate();
+    };
+
+    const createPeer = () => {
+      const peer = new Peer(getPeerId(PAGE_PREFIX, currentUsername), {
+        host: import.meta.env.VITE_PEERJS_SERVER_HOST,
+        port: Number(import.meta.env.VITE_PEERJS_SERVER_PORT),
+        secure: true,
+        config: {
+          iceServers: [
+            { url: 'stun:stun.l.google.com:19302' },
+            {
+              url: `turn:${import.meta.env.VITE_TURN_SERVER_HOST}:${import.meta.env.VITE_TURN_SERVER_PORT}`,
+              username: import.meta.env.VITE_TURN_SERVER_USERNAME,
+              credential: import.meta.env.VITE_TURN_SERVER_CREDENTIAL,
+            },
+          ],
+        },
+      });
+
+      peer.on('open', () => {
+        console.debug('peer opened', peer.id);
+        setPeer(peer);
+        stopRecreate();
+      });
+
+      peer.on('call', (connection) => {
+        console.debug('connection received', connection.peer);
+        connection.answer(mediaStream);
+        handleNewConnection(connection);
+      });
+
+      peer.on('error', (error) => {
+        console.debug('error', error);
+        failPeer(peer);
+      });
+
+      peer.on('disconnected', (connectionId) => {
+        console.debug('disconnected', connectionId);
+        failPeer(peer);
+      });
+
+      peer.on('close', () => {
+        console.debug('closed');
+        failPeer(peer);
+      });
+
+      window.addEventListener('beforeunload', () => {
+        peer.destroy();
+        setPeer(null);
+      });
+
+      return peer;
+    };
+
+    currentPeer = createPeer();
 
     return () => {
-      peer.destroy();
+      stopRecreate();
+      try {
+        currentPeer?.destroy();
+      } catch {
+        //
+      }
+      currentPeer = null;
       setPeer(null);
     };
   }, [currentUsername, mediaStream, handleNewConnection]);
