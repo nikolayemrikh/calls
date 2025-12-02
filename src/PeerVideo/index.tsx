@@ -146,25 +146,21 @@ export const PeerVideo: FC = () => {
 
     const connectionId = getPeerId(PAGE_PREFIX, hostUsername);
 
-    let isConnectionCreated = false;
     const callHost = () => {
       if (!peer.open) return;
       const connection: MediaConnection | undefined = peer.call(connectionId, mediaStream); // could be undefined if peer is destroyed
       if (!connection) return;
 
-      isConnectionCreated = true;
+      window.clearInterval(interval);
       handleNewConnection(connection);
       console.debug('connection created', connection.peer);
     };
+
+    const interval = window.setInterval(callHost, 1000);
     callHost();
 
-    const timer = window.setInterval(() => {
-      if (isConnectionCreated) return;
-      callHost();
-    }, 1000);
-
     return () => {
-      window.clearTimeout(timer);
+      window.clearInterval(interval);
     };
   }, [peer, mediaStream, hostUsername, currentUsername, handleNewConnection, isOtherUserConnected]);
 
