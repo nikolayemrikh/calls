@@ -29,7 +29,7 @@ export const PeerVideo: FC = () => {
   const loopbackVideoRef = useRef<HTMLVideoElement>(null);
   const handleNewConnection = useCallback((connection: MediaConnection) => {
     connection.on('stream', (stream) => {
-      console.debug('connection stream', connection.peer);
+      console.debug('media connection stream', connection.peer);
       videoRef.current!.srcObject = stream;
       setIsOtherUserConnected(true);
     });
@@ -37,14 +37,14 @@ export const PeerVideo: FC = () => {
       if (videoRef.current) {
         videoRef.current.srcObject = null;
       }
-      console.debug('connection closed', connection.peer);
+      console.debug('media connection closed', connection.peer);
       setIsOtherUserConnected(false);
     });
     connection.on('error', () => {
       if (videoRef.current) {
         videoRef.current.srcObject = null;
       }
-      console.debug('connection error', connection.peer);
+      console.debug('media connection error', connection.peer);
       setIsOtherUserConnected(false);
     });
   }, []);
@@ -57,6 +57,7 @@ export const PeerVideo: FC = () => {
 
   useEffect(() => {
     if (!mediaStream) return;
+
     const peer = new Peer(getPeerId(PAGE_PREFIX, currentUsername), {
       host: import.meta.env.VITE_PEERJS_SERVER_HOST,
       port: Number(import.meta.env.VITE_PEERJS_SERVER_PORT),
@@ -73,6 +74,7 @@ export const PeerVideo: FC = () => {
       },
     });
     peer.on('open', () => {
+      console.debug('peer opened', peer.id);
       setPeer(peer);
     });
 
@@ -81,11 +83,19 @@ export const PeerVideo: FC = () => {
       connection.answer(mediaStream);
       handleNewConnection(connection);
     });
-    // peer.on('error', () => {
-    //   peer.reconnect();
-    // });
+    peer.on('error', (error) => {
+      console.debug('error', error);
+      setPeer(null);
+      peer.destroy();
+    });
     peer.on('disconnected', (connectionId) => {
       console.debug('disconnected', connectionId);
+      setPeer(null);
+      peer.destroy();
+    });
+    peer.on('close', () => {
+      console.debug('closed');
+      setPeer(null);
     });
 
     window.addEventListener('beforeunload', () => {
