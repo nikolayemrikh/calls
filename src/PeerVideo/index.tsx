@@ -28,13 +28,20 @@ export const PeerVideo: FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const loopbackVideoRef = useRef<HTMLVideoElement>(null);
+
+  const activeConnectionRef = useRef<MediaConnection | null>(null);
+
   const handleNewConnection = useCallback((connection: MediaConnection) => {
+    activeConnectionRef.current = connection;
+
     connection.on('stream', (stream) => {
       console.debug('media connection stream', connection.peer);
       videoRef.current!.srcObject = stream;
       setIsOtherUserConnected(true);
     });
     connection.on('close', () => {
+      activeConnectionRef.current = null;
+
       if (videoRef.current) {
         videoRef.current.srcObject = null;
       }
@@ -42,6 +49,8 @@ export const PeerVideo: FC = () => {
       setIsOtherUserConnected(false);
     });
     connection.on('error', () => {
+      activeConnectionRef.current = null;
+
       if (videoRef.current) {
         videoRef.current.srcObject = null;
       }
@@ -85,7 +94,6 @@ export const PeerVideo: FC = () => {
       } catch {
         //
       }
-
       currentPeer = null;
       startRecreate();
     };
@@ -170,15 +178,31 @@ export const PeerVideo: FC = () => {
             height: { min: 720, ideal: 1080, max: 1440 },
             frameRate: { ideal: 60 },
             facingMode: facingMode,
-            // aspectRatio: { ideal: 16 / 9 },
-            // advanced: [{ exposureMode: 'manual' }, { focusMode: 'continuous' }, { whiteBalanceMode: 'continuous' }],
           },
           audio: true,
         });
       } catch {
         return;
       }
-      setMediaStream(ms);
+
+      if (activeConnectionRef.current) {
+        const connection = activeConnectionRef.current;
+        if (!connection?.peerConnection) return;
+
+        const newVideoTrack = ms.getVideoTracks()[0];
+        if (!newVideoTrack) return;
+
+        const sender = connection.peerConnection.getSenders().find((s: RTCRtpSender) => s.track?.kind === 'video');
+        if (!sender) return;
+
+        console.debug('Replacing video track...');
+        await sender.replaceTrack(newVideoTrack);
+
+        setMediaStream(ms);
+      } else {
+        setMediaStream(ms);
+      }
+
       window.clearInterval(interval);
     };
 
@@ -205,7 +229,7 @@ export const PeerVideo: FC = () => {
 
     const callHost = () => {
       if (!peer.open) return;
-      const connection: MediaConnection | undefined = peer.call(connectionId, mediaStream); // could be undefined if peer is destroyed
+      const connection: MediaConnection | undefined = peer.call(connectionId, mediaStream);
       if (!connection) return;
 
       window.clearInterval(interval);
