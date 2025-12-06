@@ -171,7 +171,7 @@ export const PeerVideo: FC = () => {
             width: { min: 1280, ideal: 1920, max: 2560 },
             height: { min: 720, ideal: 1080, max: 1440 },
             frameRate: { ideal: 60 }, // высокая частота кадров
-            facingMode: 'user', // или "environment" для задней камеры
+            facingMode: { ideal: 'user' }, // или "environment" для задней камеры
             // aspectRatio: { ideal: 16 / 9 },
             // advanced: [{ exposureMode: 'manual' }, { focusMode: 'continuous' }, { whiteBalanceMode: 'continuous' }],
           },
@@ -276,7 +276,9 @@ export const PeerVideo: FC = () => {
 
               videoTrack.applyConstraints({
                 ...currentConstraints,
-                facingMode: currentConstraints.facingMode === 'user' ? 'environment' : 'user',
+                facingMode: {
+                  ideal: currentConstraints.facingMode === 'user' ? 'environment' : 'user',
+                },
               });
             }}
             sx={{ position: 'absolute', bottom: 10, right: 10 }}
