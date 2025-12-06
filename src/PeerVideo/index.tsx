@@ -169,7 +169,7 @@ export const PeerVideo: FC = () => {
             width: { min: 1280, ideal: 1920, max: 2560 },
             height: { min: 720, ideal: 1080, max: 1440 },
             frameRate: { ideal: 60 },
-            facingMode: { ideal: facingMode },
+            facingMode: facingMode,
             // aspectRatio: { ideal: 16 / 9 },
             // advanced: [{ exposureMode: 'manual' }, { focusMode: 'continuous' }, { whiteBalanceMode: 'continuous' }],
           },
