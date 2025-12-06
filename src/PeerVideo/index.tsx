@@ -268,8 +268,7 @@ export const PeerVideo: FC = () => {
             const videoTrack = mediaStream?.getVideoTracks()[0];
             if (!videoTrack) return;
 
-            const currentConstraints = videoTrack.getConstraints();
-            setFacingMode(currentConstraints.facingMode === 'user' ? 'environment' : 'user');
+            setFacingMode((c) => (c === 'user' ? 'environment' : 'user'));
           }}
           sx={{ position: 'absolute', bottom: 10, right: 10 }}
         >
