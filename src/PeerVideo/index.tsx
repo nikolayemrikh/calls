@@ -157,45 +157,43 @@ export const PeerVideo: FC = () => {
     };
   }, [currentUsername, mediaStream, handleNewConnection]);
 
+  const [facingMode, setFacingMode] = useState('user');
+
   useEffect(() => {
-    let isCleaned = false;
-    let isRequestMediaRunning = false;
+    let ms: MediaStream | undefined;
 
     const requestMedia = async () => {
-      if (isRequestMediaRunning) return;
-      isRequestMediaRunning = true;
-      let ms: MediaStream | undefined;
       try {
         ms = await navigator.mediaDevices.getUserMedia({
           video: {
             width: { min: 1280, ideal: 1920, max: 2560 },
             height: { min: 720, ideal: 1080, max: 1440 },
             frameRate: { ideal: 60 }, // высокая частота кадров
-            facingMode: { ideal: 'user' }, // или "environment" для задней камеры
+            facingMode: { ideal: facingMode }, // или "environment" для задней камеры
             // aspectRatio: { ideal: 16 / 9 },
             // advanced: [{ exposureMode: 'manual' }, { focusMode: 'continuous' }, { whiteBalanceMode: 'continuous' }],
           },
           audio: true,
         });
       } catch {
-        isRequestMediaRunning = false;
         return;
       }
-      isRequestMediaRunning = false;
-      if (isCleaned || !ms) return;
       setMediaStream(ms);
       window.clearInterval(interval);
     };
 
     requestMedia();
 
-    const interval = window.setInterval(requestMedia, 1000);
+    const interval = window.setInterval(() => {
+      if (ms) return;
+      requestMedia();
+    }, 1000);
 
     return () => {
-      isCleaned = true;
+      ms?.getTracks().forEach((track) => track.stop());
       window.clearInterval(interval);
     };
-  }, []);
+  }, [facingMode]);
 
   useEffect(() => {
     if (!peer || !mediaStream) return;
@@ -253,8 +251,6 @@ export const PeerVideo: FC = () => {
     return () => observer.disconnect();
   }, [changeSize]);
 
-  const videoTrack = mediaStream?.getVideoTracks()[0];
-
   return (
     <Stack direction="column" flexGrow={1} gap={2} height="100%" position="relative">
       <Stack direction="column" width="100%" height="100%" ref={containerRef} position="absolute" zIndex={1}>
@@ -266,26 +262,18 @@ export const PeerVideo: FC = () => {
           muted
           style={{ width: 100, height: 100, position: 'absolute', bottom: 10, left: 10, transform: 'scaleX(-1)' }}
         />
-        {videoTrack && (
-          <IconButton
-            onClick={() => {
-              const videoTrack = mediaStream?.getVideoTracks()[0];
-              if (!videoTrack) return;
+        <IconButton
+          onClick={() => {
+            const videoTrack = mediaStream?.getVideoTracks()[0];
+            if (!videoTrack) return;
 
-              const currentConstraints = videoTrack.getConstraints();
-
-              videoTrack.applyConstraints({
-                ...currentConstraints,
-                facingMode: {
-                  ideal: currentConstraints.facingMode === 'user' ? 'environment' : 'user',
-                },
-              });
-            }}
-            sx={{ position: 'absolute', bottom: 10, right: 10 }}
-          >
-            <FlipCameraIos />
-          </IconButton>
-        )}
+            const currentConstraints = videoTrack.getConstraints();
+            setFacingMode(currentConstraints.facingMode === 'user' ? 'environment' : 'user');
+          }}
+          sx={{ position: 'absolute', bottom: 10, right: 10 }}
+        >
+          <FlipCameraIos />
+        </IconButton>
       </Stack>
 
       {!isOtherUserConnected && currentUsername === hostUsername && (
