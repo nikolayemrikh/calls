@@ -60,10 +60,6 @@ export const PeerVideo: FC = () => {
   }, []);
 
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
-  useEffect(() => {
-    if (!loopbackVideoRef.current) throw new Error('loopbackVideoRef.current should be defined');
-    loopbackVideoRef.current.srcObject = mediaStream;
-  }, [mediaStream]);
 
   useEffect(() => {
     if (!mediaStream) return;
@@ -197,10 +193,13 @@ export const PeerVideo: FC = () => {
 
         console.debug('Replacing video track...');
         await sender.replaceTrack(newVideoTrack);
-
-        // setMediaStream(ms);
       } else {
         setMediaStream(ms);
+      }
+
+      if (loopbackVideoRef.current) {
+        loopbackVideoRef.current.srcObject = ms;
+        // throw new Error('loopbackVideoRef.current should be defined');
       }
 
       window.clearInterval(interval);
