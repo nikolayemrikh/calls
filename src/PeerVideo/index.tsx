@@ -181,9 +181,13 @@ export const PeerVideo: FC = () => {
         return;
       }
 
+      if (loopbackVideoRef.current) {
+        loopbackVideoRef.current.srcObject = ms;
+        // throw new Error('loopbackVideoRef.current should be defined');
+      }
+
       if (activeConnectionRef.current) {
         const connection = activeConnectionRef.current;
-        if (!connection?.peerConnection) return;
 
         const newVideoTrack = ms.getVideoTracks()[0];
         if (!newVideoTrack) return;
@@ -195,11 +199,6 @@ export const PeerVideo: FC = () => {
         await sender.replaceTrack(newVideoTrack);
       } else {
         setMediaStream(ms);
-      }
-
-      if (loopbackVideoRef.current) {
-        loopbackVideoRef.current.srcObject = ms;
-        // throw new Error('loopbackVideoRef.current should be defined');
       }
 
       window.clearInterval(interval);
