@@ -198,7 +198,7 @@ export const PeerVideo: FC = () => {
         console.debug('Replacing video track...');
         await sender.replaceTrack(newVideoTrack);
 
-        setMediaStream(ms);
+        // setMediaStream(ms);
       } else {
         setMediaStream(ms);
       }
