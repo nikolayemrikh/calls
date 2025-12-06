@@ -184,10 +184,11 @@ export const PeerVideo: FC = () => {
 
     requestMedia();
 
-    const interval = window.setInterval(() => {
-      if (ms) return;
-      requestMedia();
-    }, 1000);
+    let interval: number | undefined;
+
+    if (!ms) {
+      interval = window.setInterval(requestMedia, 1000);
+    }
 
     return () => {
       ms?.getTracks().forEach((track) => track.stop());
