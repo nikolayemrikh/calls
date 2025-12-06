@@ -1,6 +1,7 @@
 import { ELocalStorageKey } from '@app/core/localStorage/constants';
 import { getPeerId } from '@app/core/peer/getPeerId';
-import { Button, Card, Stack, Typography } from '@mui/material';
+import { FlipCameraIos } from '@mui/icons-material';
+import { Button, Card, IconButton, Stack, Typography } from '@mui/material';
 import copy from 'copy-to-clipboard';
 import Peer, { MediaConnection } from 'peerjs';
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -74,8 +75,10 @@ export const PeerVideo: FC = () => {
     };
 
     let currentPeer: Peer | null = null;
+    let isCleaned = false;
 
     const failPeer = (peer: Peer) => {
+      if (isCleaned) return;
       setPeer(null);
       try {
         peer.destroy();
@@ -142,6 +145,7 @@ export const PeerVideo: FC = () => {
     currentPeer = createPeer();
 
     return () => {
+      isCleaned = true;
       stopRecreate();
       try {
         currentPeer?.destroy();
@@ -249,6 +253,8 @@ export const PeerVideo: FC = () => {
     return () => observer.disconnect();
   }, [changeSize]);
 
+  const videoTrack = mediaStream?.getVideoTracks()[0];
+
   return (
     <Stack direction="column" flexGrow={1} gap={2} height="100%" position="relative">
       <Stack direction="column" width="100%" height="100%" ref={containerRef} position="absolute" zIndex={1}>
@@ -260,6 +266,24 @@ export const PeerVideo: FC = () => {
           muted
           style={{ width: 100, height: 100, position: 'absolute', bottom: 10, left: 10, transform: 'scaleX(-1)' }}
         />
+        {videoTrack && (
+          <IconButton
+            onClick={() => {
+              const videoTrack = mediaStream?.getVideoTracks()[0];
+              if (!videoTrack) return;
+
+              const currentConstraints = videoTrack.getConstraints();
+
+              videoTrack.applyConstraints({
+                ...currentConstraints,
+                facingMode: currentConstraints.facingMode === 'user' ? 'environment' : 'user',
+              });
+            }}
+            sx={{ position: 'absolute', bottom: 10, right: 10 }}
+          >
+            <FlipCameraIos />
+          </IconButton>
+        )}
       </Stack>
 
       {!isOtherUserConnected && currentUsername === hostUsername && (
