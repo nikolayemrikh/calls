@@ -189,19 +189,19 @@ export const PeerVideo: FC = () => {
         // throw new Error('loopbackVideoRef.current should be defined');
       }
 
-      const connection = activeConnectionRef.current;
-      if (connection) {
-        const newVideoTrack = ms.getVideoTracks()[0];
-        if (!newVideoTrack) return;
+      // const connection = activeConnectionRef.current;
+      // if (connection) {
+      //   const newVideoTrack = ms.getVideoTracks()[0];
+      //   if (!newVideoTrack) return;
 
-        const sender = connection.peerConnection.getSenders()?.find((s: RTCRtpSender) => s.track?.kind === 'video');
-        if (!sender) return;
+      //   const sender = connection.peerConnection.getSenders()?.find((s: RTCRtpSender) => s.track?.kind === 'video');
+      //   if (!sender) return;
 
-        console.debug('Replacing video track...');
-        await sender.replaceTrack(newVideoTrack);
-      } else {
-        setMediaStream(ms);
-      }
+      //   console.debug('Replacing video track...');
+      //   await sender.replaceTrack(newVideoTrack);
+      // } else {
+      // }
+      setMediaStream(ms);
 
       window.clearInterval(interval);
     };
