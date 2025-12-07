@@ -2,6 +2,7 @@ import { ELocalStorageKey } from '@app/core/localStorage/constants';
 import { getPeerId } from '@app/core/peer/getPeerId';
 import { FlipCameraIos } from '@mui/icons-material';
 import { Button, Card, IconButton, Stack, Typography } from '@mui/material';
+import { captureException } from '@sentry/react';
 import copy from 'copy-to-clipboard';
 import Peer, { MediaConnection } from 'peerjs';
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -48,7 +49,8 @@ export const PeerVideo: FC = () => {
       console.debug('media connection closed', connection.peer);
       setIsOtherUserConnected(false);
     });
-    connection.on('error', () => {
+    connection.on('error', (err) => {
+      captureException(new Error(`Media connection error: ${err}`), { extra: { ...err } });
       activeConnectionRef.current = null;
 
       if (videoRef.current) {
