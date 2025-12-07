@@ -168,6 +168,7 @@ export const PeerVideo: FC = () => {
 
   useEffect(() => {
     let ms: MediaStream | undefined;
+    let isCleaned = false;
 
     const requestMedia = async () => {
       try {
@@ -183,6 +184,8 @@ export const PeerVideo: FC = () => {
       } catch {
         return;
       }
+
+      if (isCleaned) return;
 
       if (loopbackVideoRef.current) {
         loopbackVideoRef.current.srcObject = ms;
@@ -217,6 +220,7 @@ export const PeerVideo: FC = () => {
     }, 1000);
 
     return () => {
+      isCleaned = true;
       ms?.getTracks().forEach((track) => track.stop());
       window.clearInterval(interval);
     };
