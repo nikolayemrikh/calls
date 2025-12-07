@@ -189,30 +189,32 @@ export const PeerVideo: FC = () => {
         // throw new Error('loopbackVideoRef.current should be defined');
       }
 
-      // const connection = activeConnectionRef.current;
-      // if (connection) {
-      //   const newVideoTrack = ms.getVideoTracks()[0];
-      //   if (!newVideoTrack) return;
+      const connection = activeConnectionRef.current;
+      if (connection) {
+        const newVideoTrack = ms.getVideoTracks()[0];
+        if (!newVideoTrack) return;
 
-      //   const sender = connection.peerConnection.getSenders()?.find((s: RTCRtpSender) => s.track?.kind === 'video');
-      //   if (!sender) return;
+        const sender = connection.peerConnection.getSenders()?.find((s: RTCRtpSender) => s.track?.kind === 'video');
+        if (!sender) return;
 
-      //   console.debug('Replacing video track...');
-      //   await sender.replaceTrack(newVideoTrack);
-      // } else {
-      // }
-      setMediaStream(ms);
+        console.debug('Replacing video track...');
+        await sender.replaceTrack(newVideoTrack);
+      } else {
+        setMediaStream(ms);
+      }
 
       window.clearInterval(interval);
     };
 
     requestMedia();
 
-    let interval: number | undefined;
-
-    if (!ms) {
-      interval = window.setInterval(requestMedia, 1000);
-    }
+    const interval = window.setInterval(() => {
+      if (ms) {
+        window.clearInterval(interval);
+        return;
+      }
+      requestMedia();
+    }, 1000);
 
     return () => {
       ms?.getTracks().forEach((track) => track.stop());
