@@ -10,6 +10,7 @@ import tsconfig from './tsconfig.json';
 export default defineConfig({
   build: {
     outDir: 'dist',
+    sourcemap: true,
   },
   plugins: [
     react(),
