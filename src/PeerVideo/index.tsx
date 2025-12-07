@@ -50,7 +50,7 @@ export const PeerVideo: FC = () => {
       setIsOtherUserConnected(false);
     });
     connection.on('error', (err) => {
-      captureException(new Error(`Media connection error: ${err}`), { extra: { ...err } });
+      captureException(new Error(`Media connection error: ${err.message}`), { extra: { ...err } });
       activeConnectionRef.current = null;
 
       if (videoRef.current) {
@@ -126,6 +126,7 @@ export const PeerVideo: FC = () => {
       });
 
       peer.on('error', (error) => {
+        captureException(new Error(`Сonnection error: ${error.message}`), { extra: { ...error } });
         console.debug('error', error);
         failPeer(peer);
       });
