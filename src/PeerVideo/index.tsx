@@ -177,11 +177,12 @@ export const PeerVideo: FC = () => {
             width: { min: 1280, ideal: 1920, max: 2560 },
             height: { min: 720, ideal: 1080, max: 1440 },
             frameRate: { ideal: 60 },
-            facingMode: facingMode,
+            facingMode: { ideal: facingMode },
           },
           audio: true,
         });
-      } catch {
+      } catch (err) {
+        captureException(err);
         return;
       }
 
