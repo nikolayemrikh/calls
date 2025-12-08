@@ -169,56 +169,56 @@ export const PeerVideo: FC = () => {
   useEffect(() => {
     let ms: MediaStream | undefined;
     let isCleaned = false;
+    let isRunning = false;
 
     const requestMedia = async () => {
+      if (isCleaned || isRunning || ms) return;
       try {
-        ms = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { min: 1280, ideal: 1920, max: 2560 },
-            height: { min: 720, ideal: 1080, max: 1440 },
-            frameRate: { ideal: 60 },
-            facingMode: { ideal: facingMode },
-          },
-          audio: true,
-        });
-      } catch (err) {
-        captureException(err);
-        return;
+        isRunning = true;
+        try {
+          ms = await navigator.mediaDevices.getUserMedia({
+            video: {
+              width: { min: 1280, ideal: 1920, max: 2560 },
+              height: { min: 720, ideal: 1080, max: 1440 },
+              frameRate: { ideal: 60 },
+              facingMode: facingMode,
+            },
+            audio: true,
+          });
+        } catch {
+          return;
+        }
+
+        if (isCleaned) return;
+
+        if (loopbackVideoRef.current) {
+          loopbackVideoRef.current.srcObject = ms;
+          // throw new Error('loopbackVideoRef.current should be defined');
+        }
+
+        const connection = activeConnectionRef.current;
+        if (connection) {
+          const newVideoTrack = ms.getVideoTracks()[0];
+          if (!newVideoTrack) return;
+
+          const sender = connection.peerConnection.getSenders()?.find((s: RTCRtpSender) => s.track?.kind === 'video');
+          if (!sender) return;
+
+          console.debug('Replacing video track...');
+          await sender.replaceTrack(newVideoTrack);
+        } else {
+          setMediaStream(ms);
+        }
+
+        window.clearInterval(interval);
+      } finally {
+        isRunning = false;
       }
-
-      if (isCleaned) return;
-
-      if (loopbackVideoRef.current) {
-        loopbackVideoRef.current.srcObject = ms;
-        // throw new Error('loopbackVideoRef.current should be defined');
-      }
-
-      const connection = activeConnectionRef.current;
-      if (connection) {
-        const newVideoTrack = ms.getVideoTracks()[0];
-        if (!newVideoTrack) return;
-
-        const sender = connection.peerConnection.getSenders()?.find((s: RTCRtpSender) => s.track?.kind === 'video');
-        if (!sender) return;
-
-        console.debug('Replacing video track...');
-        await sender.replaceTrack(newVideoTrack);
-      } else {
-        setMediaStream(ms);
-      }
-
-      window.clearInterval(interval);
     };
 
     requestMedia();
 
-    const interval = window.setInterval(() => {
-      if (ms) {
-        window.clearInterval(interval);
-        return;
-      }
-      requestMedia();
-    }, 1000);
+    const interval = window.setInterval(requestMedia, 1000);
 
     return () => {
       isCleaned = true;
