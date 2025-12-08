@@ -5,4 +5,5 @@ Sentry.init({
   sendDefaultPii: true,
   environment: import.meta.env.MODE,
   tracesSampleRate: 1,
+  debug: true,
 });
