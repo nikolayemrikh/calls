@@ -60,6 +60,38 @@ export const PeerAudio: FC = () => {
 
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
 
+  const localStream = useMemo(() => new MediaStream(), []);
+
+  const applyTrack = useCallback(
+    async (track: MediaStreamTrack) => {
+      const { kind } = track;
+
+      const connection = activeConnectionRef.current;
+      if (connection) {
+        const sender = connection.peerConnection.getSenders()?.find((s: RTCRtpSender) => s.track?.kind === kind);
+        if (sender) {
+          console.debug(`Replacing ${kind} track...`);
+          await sender.replaceTrack(track);
+        }
+      }
+
+      for (const previousTrack of localStream.getTracks()) {
+        if (previousTrack.kind !== kind || previousTrack === track) continue;
+        localStream.removeTrack(previousTrack);
+        previousTrack.stop();
+      }
+      localStream.addTrack(track);
+    },
+    [localStream]
+  );
+
+  useEffect(
+    () => () => {
+      localStream.getTracks().forEach((track) => track.stop());
+    },
+    [localStream]
+  );
+
   useEffect(() => {
     if (!mediaStream) return;
 
@@ -162,14 +194,16 @@ export const PeerAudio: FC = () => {
   }, [currentUsername, mediaStream, handleNewConnection]);
 
   useEffect(() => {
-    let ms: MediaStream | undefined;
     let isCleaned = false;
     let isRunning = false;
+    let isDone = false;
 
     const requestMedia = async () => {
-      if (isCleaned || isRunning || ms) return;
+      if (isCleaned || isRunning || isDone) return;
       try {
         isRunning = true;
+
+        let ms: MediaStream;
         try {
           ms = await navigator.mediaDevices.getUserMedia({
             video: false,
@@ -179,11 +213,18 @@ export const PeerAudio: FC = () => {
           return;
         }
 
-        if (isCleaned) return;
+        const audioTrack = ms.getAudioTracks()[0];
+        if (isCleaned || !audioTrack) {
+          ms.getTracks().forEach((track) => track.stop());
+          return;
+        }
 
-        setMediaStream(ms);
-
+        isDone = true;
         window.clearInterval(interval);
+
+        await applyTrack(audioTrack);
+
+        setMediaStream(localStream);
       } finally {
         isRunning = false;
       }
@@ -195,10 +236,9 @@ export const PeerAudio: FC = () => {
 
     return () => {
       isCleaned = true;
-      ms?.getTracks().forEach((track) => track.stop());
       window.clearInterval(interval);
     };
-  }, []);
+  }, [applyTrack, localStream]);
 
   useEffect(() => {
     if (!peer || !mediaStream) return;
