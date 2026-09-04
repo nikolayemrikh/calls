@@ -1,3 +1,4 @@
+import { getIceServers } from '@app/core/peer/getIceServers';
 import { getPeerId } from '@app/core/peer/getPeerId';
 import { FlipCameraIos } from '@mui/icons-material';
 import { Button, Card, IconButton, Stack, Typography } from '@mui/material';
@@ -51,7 +52,9 @@ export const PeerBotVideo: FC = () => {
       setIsOtherUserConnected(false);
     });
     connection.on('error', (err) => {
-      captureException(new Error(`Media connection error: ${err.message}`), { extra: { ...err } });
+      captureException(new Error(`Media connection error: ${err.message}`), {
+        extra: { ...err },
+      });
       activeConnectionRef.current = null;
 
       if (videoRef.current) {
@@ -103,14 +106,7 @@ export const PeerBotVideo: FC = () => {
         port: Number(import.meta.env.VITE_PEERJS_SERVER_PORT),
         secure: true,
         config: {
-          iceServers: [
-            { url: 'stun:stun.l.google.com:19302' },
-            {
-              url: `turns:${import.meta.env.VITE_TURN_SERVER_HOST}:${import.meta.env.VITE_TURN_SERVER_PORT}`,
-              username: import.meta.env.VITE_TURN_SERVER_USERNAME,
-              credential: import.meta.env.VITE_TURN_SERVER_CREDENTIAL,
-            },
-          ],
+          iceServers: getIceServers(),
         },
       });
 
@@ -127,7 +123,9 @@ export const PeerBotVideo: FC = () => {
       });
 
       peer.on('error', (error) => {
-        captureException(new Error(`Сonnection error: ${error.message}`), { extra: { ...error } });
+        captureException(new Error(`Сonnection error: ${error.message}`), {
+          extra: { ...error },
+        });
         console.debug('error', error);
         failPeer(peer);
       });

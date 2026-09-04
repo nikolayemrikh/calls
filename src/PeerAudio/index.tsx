@@ -1,4 +1,10 @@
 import { ELocalStorageKey } from '@app/core/localStorage/constants';
+import { EMediaErrorKind, EMediaKind } from '@app/core/media/enums';
+import { getMediaErrorKind, isMediaErrorFatal } from '@app/core/media/getMediaErrorKind';
+import { getMediaErrorMessage } from '@app/core/media/getMediaErrorMessage';
+import { getUserMedia } from '@app/core/media/getUserMedia';
+import { playMediaElement } from '@app/core/media/playMediaElement';
+import { getIceServers } from '@app/core/peer/getIceServers';
 import { getPeerId } from '@app/core/peer/getPeerId';
 import { Mic, MicOff } from '@mui/icons-material';
 import { Button, Card, IconButton, Stack, Typography } from '@mui/material';
@@ -33,10 +39,12 @@ export const PeerAudio: FC = () => {
   const handleNewConnection = useCallback((connection: MediaConnection) => {
     activeConnectionRef.current = connection;
 
-    connection.on('stream', (stream) => {
+    connection.on('stream', async (stream) => {
       console.debug('media connection stream', connection.peer);
-      audioRef.current!.srcObject = stream;
+      const audio = audioRef.current!;
+      audio.srcObject = stream;
       setIsOtherUserConnected(true);
+      setIsPlaybackBlocked(!(await playMediaElement(audio)));
     });
     connection.on('close', () => {
       activeConnectionRef.current = null;
@@ -48,7 +56,9 @@ export const PeerAudio: FC = () => {
       setIsOtherUserConnected(false);
     });
     connection.on('error', (err) => {
-      captureException(new Error(`Media connection error: ${err.message}`), { extra: { ...err } });
+      captureException(new Error(`Media connection error: ${err.message}`), {
+        extra: { ...err },
+      });
       activeConnectionRef.current = null;
 
       if (audioRef.current) {
@@ -60,6 +70,9 @@ export const PeerAudio: FC = () => {
   }, []);
 
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
+  const [isPlaybackBlocked, setIsPlaybackBlocked] = useState(false);
+  const [mediaErrorKind, setMediaErrorKind] = useState<EMediaErrorKind | null>(null);
+  const [isMediaRequestPaused, setIsMediaRequestPaused] = useState(false);
 
   const localStream = useMemo(() => new MediaStream(), []);
 
@@ -132,14 +145,7 @@ export const PeerAudio: FC = () => {
         port: Number(import.meta.env.VITE_PEERJS_SERVER_PORT),
         secure: true,
         config: {
-          iceServers: [
-            { url: 'stun:stun.l.google.com:19302' },
-            {
-              url: `turns:${import.meta.env.VITE_TURN_SERVER_HOST}:${import.meta.env.VITE_TURN_SERVER_PORT}`,
-              username: import.meta.env.VITE_TURN_SERVER_USERNAME,
-              credential: import.meta.env.VITE_TURN_SERVER_CREDENTIAL,
-            },
-          ],
+          iceServers: getIceServers(),
         },
       });
 
@@ -156,7 +162,9 @@ export const PeerAudio: FC = () => {
       });
 
       peer.on('error', (error) => {
-        captureException(new Error(`Сonnection error: ${error.message}`), { extra: { ...error } });
+        captureException(new Error(`Сonnection error: ${error.message}`), {
+          extra: { ...error },
+        });
         console.debug('error', error);
         failPeer(peer);
       });
@@ -195,6 +203,8 @@ export const PeerAudio: FC = () => {
   }, [currentUsername, mediaStream, handleNewConnection]);
 
   useEffect(() => {
+    if (isMediaRequestPaused) return;
+
     let isCleaned = false;
     let isRunning = false;
     let isDone = false;
@@ -206,11 +216,21 @@ export const PeerAudio: FC = () => {
 
         let ms: MediaStream;
         try {
-          ms = await navigator.mediaDevices.getUserMedia({
+          ms = await getUserMedia({
             video: false,
             audio: true,
           });
-        } catch {
+        } catch (error) {
+          const kind = getMediaErrorKind(error);
+          setMediaErrorKind(kind);
+
+          if (!isMediaErrorFatal(kind)) return;
+
+          isDone = true;
+          setIsMediaRequestPaused(true);
+          captureException(new Error(`getUserMedia failed: ${kind}`), {
+            extra: { kind, userAgent: navigator.userAgent },
+          });
           return;
         }
 
@@ -222,6 +242,7 @@ export const PeerAudio: FC = () => {
 
         isDone = true;
         window.clearInterval(interval);
+        setMediaErrorKind(null);
 
         await applyTrack(audioTrack);
 
@@ -239,7 +260,7 @@ export const PeerAudio: FC = () => {
       isCleaned = true;
       window.clearInterval(interval);
     };
-  }, [applyTrack, localStream]);
+  }, [applyTrack, localStream, isMediaRequestPaused]);
 
   const [isMicrophoneEnabled, setIsMicrophoneEnabled] = useState(false);
 
@@ -276,15 +297,57 @@ export const PeerAudio: FC = () => {
     };
   }, [peer, mediaStream, hostUsername, currentUsername, handleNewConnection, isOtherUserConnected]);
 
+  const mediaErrorMessage = mediaErrorKind ? getMediaErrorMessage(mediaErrorKind, EMediaKind.audio) : null;
+
   return (
     <Stack direction="column" flexGrow={1} gap={2} height="100%" position="relative">
       <audio ref={audioRef} autoPlay playsInline />
 
-      {isOtherUserConnected ? (
+      {mediaErrorMessage ? (
+        <Stack direction="column" flexGrow={1} gap={4} alignItems="center" justifyContent="center" padding={2}>
+          <Stack direction="row" justifyContent="center" width="100%">
+            <Card sx={{ padding: 4, flexBasis: 500 }}>
+              <Stack direction="column" gap={2}>
+                <Typography variant="h6" textAlign="center">
+                  {mediaErrorMessage.title}
+                </Typography>
+                <Typography variant="body2" textAlign="center">
+                  {mediaErrorMessage.description}
+                </Typography>
+                {mediaErrorMessage.isRetriable && (
+                  <Button
+                    variant="contained"
+                    size="large"
+                    onClick={() => {
+                      setMediaErrorKind(null);
+                      setIsMediaRequestPaused(false);
+                    }}
+                  >
+                    Повторить
+                  </Button>
+                )}
+              </Stack>
+            </Card>
+          </Stack>
+        </Stack>
+      ) : isOtherUserConnected ? (
         <Stack direction="column" flexGrow={1} gap={4} alignItems="center" justifyContent="center" padding={2}>
           <Typography variant="h5" textAlign="center">
             Аудиозвонок идёт
           </Typography>
+          {isPlaybackBlocked && (
+            <Button
+              variant="contained"
+              size="large"
+              onClick={async () => {
+                const audio = audioRef.current;
+                if (!audio) return;
+                setIsPlaybackBlocked(!(await playMediaElement(audio)));
+              }}
+            >
+              Нажмите, чтобы слышать собеседника
+            </Button>
+          )}
         </Stack>
       ) : (
         <Stack direction="column" flexGrow={1} gap={4} alignItems="center" justifyContent="center" padding={2}>

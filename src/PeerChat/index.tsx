@@ -1,5 +1,6 @@
 import { PageMain } from '@app/components/PageMain';
 import { ELocalStorageKey } from '@app/core/localStorage/constants';
+import { getIceServers } from '@app/core/peer/getIceServers';
 import { getPeerId } from '@app/core/peer/getPeerId';
 import SendIcon from '@mui/icons-material/Send';
 import { Button, Stack, TextField, Typography } from '@mui/material';
@@ -96,14 +97,7 @@ export const PeerChat: FC = () => {
       port: Number(import.meta.env.VITE_PEERJS_SERVER_PORT),
       secure: true,
       config: {
-        iceServers: [
-          { url: 'stun:stun.l.google.com:19302' },
-          {
-            url: `turns:${import.meta.env.VITE_TURN_SERVER_HOST}:${import.meta.env.VITE_TURN_SERVER_PORT}`,
-            username: import.meta.env.VITE_TURN_SERVER_USERNAME,
-            credential: import.meta.env.VITE_TURN_SERVER_CREDENTIAL,
-          },
-        ],
+        iceServers: getIceServers(),
       },
     });
     peer.on('open', () => {
@@ -177,7 +171,12 @@ export const PeerChat: FC = () => {
   };
 
   const submitMessage = () => {
-    const newMessage = { id: uuid(), createdAt: new Date().toISOString(), text: message, username };
+    const newMessage = {
+      id: uuid(),
+      createdAt: new Date().toISOString(),
+      text: message,
+      username,
+    };
     broadcastEvent({
       type: EPeerChatEvent.message,
       data: newMessage,
@@ -216,7 +215,10 @@ export const PeerChat: FC = () => {
                     <Typography variant="body1">{message.text}</Typography>
                   </Stack>
                   <Typography variant="body2">
-                    {new Date(message.createdAt).toLocaleString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(message.createdAt).toLocaleString('ru-RU', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
                   </Typography>
                 </Stack>
               ))}

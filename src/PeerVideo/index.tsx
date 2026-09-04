@@ -1,4 +1,10 @@
 import { ELocalStorageKey } from '@app/core/localStorage/constants';
+import { EMediaErrorKind, EMediaKind } from '@app/core/media/enums';
+import { getMediaErrorKind, isMediaErrorFatal } from '@app/core/media/getMediaErrorKind';
+import { getMediaErrorMessage } from '@app/core/media/getMediaErrorMessage';
+import { getUserMedia } from '@app/core/media/getUserMedia';
+import { playMediaElement } from '@app/core/media/playMediaElement';
+import { getIceServers } from '@app/core/peer/getIceServers';
 import { getPeerId } from '@app/core/peer/getPeerId';
 import { FlipCameraIos } from '@mui/icons-material';
 import { Button, Card, IconButton, Stack, Typography } from '@mui/material';
@@ -35,10 +41,12 @@ export const PeerVideo: FC = () => {
   const handleNewConnection = useCallback((connection: MediaConnection) => {
     activeConnectionRef.current = connection;
 
-    connection.on('stream', (stream) => {
+    connection.on('stream', async (stream) => {
       console.debug('media connection stream', connection.peer);
-      videoRef.current!.srcObject = stream;
+      const video = videoRef.current!;
+      video.srcObject = stream;
       setIsOtherUserConnected(true);
+      setIsPlaybackBlocked(!(await playMediaElement(video)));
     });
     connection.on('close', () => {
       activeConnectionRef.current = null;
@@ -50,7 +58,9 @@ export const PeerVideo: FC = () => {
       setIsOtherUserConnected(false);
     });
     connection.on('error', (err) => {
-      captureException(new Error(`Media connection error: ${err.message}`), { extra: { ...err } });
+      captureException(new Error(`Media connection error: ${err.message}`), {
+        extra: { ...err },
+      });
       activeConnectionRef.current = null;
 
       if (videoRef.current) {
@@ -134,14 +144,7 @@ export const PeerVideo: FC = () => {
         port: Number(import.meta.env.VITE_PEERJS_SERVER_PORT),
         secure: true,
         config: {
-          iceServers: [
-            { url: 'stun:stun.l.google.com:19302' },
-            {
-              url: `turns:${import.meta.env.VITE_TURN_SERVER_HOST}:${import.meta.env.VITE_TURN_SERVER_PORT}`,
-              username: import.meta.env.VITE_TURN_SERVER_USERNAME,
-              credential: import.meta.env.VITE_TURN_SERVER_CREDENTIAL,
-            },
-          ],
+          iceServers: getIceServers(),
         },
       });
 
@@ -158,7 +161,9 @@ export const PeerVideo: FC = () => {
       });
 
       peer.on('error', (error) => {
-        captureException(new Error(`Сonnection error: ${error.message}`), { extra: { ...error } });
+        captureException(new Error(`Сonnection error: ${error.message}`), {
+          extra: { ...error },
+        });
         console.debug('error', error);
         failPeer(peer);
       });
@@ -196,9 +201,15 @@ export const PeerVideo: FC = () => {
     };
   }, [currentUsername, mediaStream, handleNewConnection]);
 
+  const [isPlaybackBlocked, setIsPlaybackBlocked] = useState(false);
+  const [mediaErrorKind, setMediaErrorKind] = useState<EMediaErrorKind | null>(null);
+  const [isMediaRequestPaused, setIsMediaRequestPaused] = useState(false);
+
   const [facingMode, setFacingMode] = useState('user');
 
   useEffect(() => {
+    if (isMediaRequestPaused) return;
+
     let isCleaned = false;
     let isRunning = false;
     let isDone = false;
@@ -212,16 +223,28 @@ export const PeerVideo: FC = () => {
 
         let ms: MediaStream;
         try {
-          ms = await navigator.mediaDevices.getUserMedia({
+          // Только ideal: min/max — это жёсткие требования, и камера, которая их не тянет
+          // (фронталка бюджетного телефона, урезанный WebView), отвечает OverconstrainedError.
+          ms = await getUserMedia({
             video: {
-              width: { min: 1280, ideal: 1920, max: 2560 },
-              height: { min: 720, ideal: 1080, max: 1440 },
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
               frameRate: { ideal: 60 },
               facingMode: facingMode,
             },
             audio: isAudioNeeded,
           });
-        } catch {
+        } catch (error) {
+          const kind = getMediaErrorKind(error);
+          setMediaErrorKind(kind);
+
+          if (!isMediaErrorFatal(kind)) return;
+
+          isDone = true;
+          setIsMediaRequestPaused(true);
+          captureException(new Error(`getUserMedia failed: ${kind}`), {
+            extra: { kind, userAgent: navigator.userAgent },
+          });
           return;
         }
 
@@ -233,6 +256,7 @@ export const PeerVideo: FC = () => {
 
         isDone = true;
         window.clearInterval(interval);
+        setMediaErrorKind(null);
 
         const audioTrack = ms.getAudioTracks()[0];
         if (audioTrack) await applyTrack(audioTrack);
@@ -256,7 +280,7 @@ export const PeerVideo: FC = () => {
       isCleaned = true;
       window.clearInterval(interval);
     };
-  }, [facingMode, applyTrack, localStream]);
+  }, [facingMode, applyTrack, localStream, isMediaRequestPaused]);
 
   useEffect(() => {
     if (!peer || !mediaStream) return;
@@ -313,6 +337,8 @@ export const PeerVideo: FC = () => {
 
     return () => observer.disconnect();
   }, [changeSize]);
+
+  const mediaErrorMessage = mediaErrorKind ? getMediaErrorMessage(mediaErrorKind, EMediaKind.videoAndAudio) : null;
 
   return (
     <Stack direction="column" flexGrow={1} gap={2} height="100%" position="relative">
@@ -376,6 +402,68 @@ export const PeerVideo: FC = () => {
               </Stack>
             </Card>
           </Stack>
+        </Stack>
+      )}
+
+      {mediaErrorMessage && (
+        <Stack
+          direction="column"
+          flexGrow={1}
+          gap={4}
+          alignItems="center"
+          justifyContent="center"
+          zIndex={3}
+          padding={2}
+        >
+          <Stack direction="row" justifyContent="center" width="100%">
+            <Card sx={{ padding: 4, flexBasis: 500 }}>
+              <Stack direction="column" gap={2}>
+                <Typography variant="h6" textAlign="center">
+                  {mediaErrorMessage.title}
+                </Typography>
+                <Typography variant="body2" textAlign="center">
+                  {mediaErrorMessage.description}
+                </Typography>
+                {mediaErrorMessage.isRetriable && (
+                  <Button
+                    variant="contained"
+                    size="large"
+                    onClick={() => {
+                      setMediaErrorKind(null);
+                      setIsMediaRequestPaused(false);
+                    }}
+                  >
+                    Повторить
+                  </Button>
+                )}
+              </Stack>
+            </Card>
+          </Stack>
+        </Stack>
+      )}
+
+      {isPlaybackBlocked && (
+        <Stack
+          direction="row"
+          justifyContent="center"
+          zIndex={3}
+          padding={2}
+          position="absolute"
+          bottom={80}
+          left={0}
+          right={0}
+        >
+          <Button
+            variant="contained"
+            size="large"
+            onClick={async () => {
+              const video = videoRef.current;
+              if (!video) return;
+              setIsPlaybackBlocked(!(await playMediaElement(video)));
+            }}
+          >
+            Нажмите, чтобы включить звук
+          </Button>
         </Stack>
       )}
     </Stack>
