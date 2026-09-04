@@ -63,6 +63,38 @@ export const PeerVideo: FC = () => {
 
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
 
+  const localStream = useMemo(() => new MediaStream(), []);
+
+  const applyTrack = useCallback(
+    async (track: MediaStreamTrack) => {
+      const { kind } = track;
+
+      const connection = activeConnectionRef.current;
+      if (connection) {
+        const sender = connection.peerConnection.getSenders()?.find((s: RTCRtpSender) => s.track?.kind === kind);
+        if (sender) {
+          console.debug(`Replacing ${kind} track...`);
+          await sender.replaceTrack(track);
+        }
+      }
+
+      for (const previousTrack of localStream.getTracks()) {
+        if (previousTrack.kind !== kind || previousTrack === track) continue;
+        localStream.removeTrack(previousTrack);
+        previousTrack.stop();
+      }
+      localStream.addTrack(track);
+    },
+    [localStream]
+  );
+
+  useEffect(
+    () => () => {
+      localStream.getTracks().forEach((track) => track.stop());
+    },
+    [localStream]
+  );
+
   useEffect(() => {
     if (!mediaStream) return;
 
@@ -167,14 +199,18 @@ export const PeerVideo: FC = () => {
   const [facingMode, setFacingMode] = useState('user');
 
   useEffect(() => {
-    let ms: MediaStream | undefined;
     let isCleaned = false;
     let isRunning = false;
+    let isDone = false;
 
     const requestMedia = async () => {
-      if (isCleaned || isRunning || ms) return;
+      if (isCleaned || isRunning || isDone) return;
       try {
         isRunning = true;
+
+        const isAudioNeeded = localStream.getAudioTracks().length === 0;
+
+        let ms: MediaStream;
         try {
           ms = await navigator.mediaDevices.getUserMedia({
             video: {
@@ -183,34 +219,30 @@ export const PeerVideo: FC = () => {
               frameRate: { ideal: 60 },
               facingMode: facingMode,
             },
-            audio: true,
+            audio: isAudioNeeded,
           });
         } catch {
           return;
         }
 
-        if (isCleaned) return;
+        const videoTrack = ms.getVideoTracks()[0];
+        if (isCleaned || !videoTrack) {
+          ms.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        isDone = true;
+        window.clearInterval(interval);
+
+        const audioTrack = ms.getAudioTracks()[0];
+        if (audioTrack) await applyTrack(audioTrack);
+        await applyTrack(videoTrack);
 
         if (loopbackVideoRef.current) {
-          loopbackVideoRef.current.srcObject = ms;
-          // throw new Error('loopbackVideoRef.current should be defined');
+          loopbackVideoRef.current.srcObject = new MediaStream([videoTrack]);
         }
 
-        const connection = activeConnectionRef.current;
-        if (connection) {
-          const newVideoTrack = ms.getVideoTracks()[0];
-          if (!newVideoTrack) return;
-
-          const sender = connection.peerConnection.getSenders()?.find((s: RTCRtpSender) => s.track?.kind === 'video');
-          if (!sender) return;
-
-          console.debug('Replacing video track...');
-          await sender.replaceTrack(newVideoTrack);
-        } else {
-          setMediaStream(ms);
-        }
-
-        window.clearInterval(interval);
+        setMediaStream(localStream);
       } finally {
         isRunning = false;
       }
@@ -222,10 +254,9 @@ export const PeerVideo: FC = () => {
 
     return () => {
       isCleaned = true;
-      ms?.getTracks().forEach((track) => track.stop());
       window.clearInterval(interval);
     };
-  }, [facingMode]);
+  }, [facingMode, applyTrack, localStream]);
 
   useEffect(() => {
     if (!peer || !mediaStream) return;
