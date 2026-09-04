@@ -1,6 +1,7 @@
 import { ELocalStorageKey } from '@app/core/localStorage/constants';
 import { getPeerId } from '@app/core/peer/getPeerId';
-import { Button, Card, Stack, Typography } from '@mui/material';
+import { Mic, MicOff } from '@mui/icons-material';
+import { Button, Card, IconButton, Stack, Typography } from '@mui/material';
 import { captureException } from '@sentry/react';
 import copy from 'copy-to-clipboard';
 import Peer, { MediaConnection } from 'peerjs';
@@ -240,6 +241,16 @@ export const PeerAudio: FC = () => {
     };
   }, [applyTrack, localStream]);
 
+  const [isMicrophoneEnabled, setIsMicrophoneEnabled] = useState(false);
+
+  useEffect(() => {
+    if (!mediaStream) return;
+
+    for (const track of mediaStream.getAudioTracks()) {
+      track.enabled = isMicrophoneEnabled;
+    }
+  }, [mediaStream, isMicrophoneEnabled]);
+
   useEffect(() => {
     if (!peer || !mediaStream) return;
     if (currentUsername === hostUsername) return;
@@ -309,6 +320,22 @@ export const PeerAudio: FC = () => {
           )}
         </Stack>
       )}
+
+      <Stack direction="column" alignItems="center" gap={1} paddingBottom={4}>
+        <IconButton
+          disabled={!mediaStream}
+          color={isMicrophoneEnabled ? 'primary' : 'default'}
+          onClick={() => {
+            setIsMicrophoneEnabled((c) => !c);
+          }}
+          sx={{ width: 64, height: 64, border: 1, borderColor: 'divider' }}
+        >
+          {isMicrophoneEnabled ? <Mic /> : <MicOff />}
+        </IconButton>
+        <Typography variant="body2" textAlign="center">
+          {isMicrophoneEnabled ? 'Микрофон включён' : 'Микрофон выключен'}
+        </Typography>
+      </Stack>
     </Stack>
   );
 };
