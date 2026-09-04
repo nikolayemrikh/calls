@@ -19,6 +19,10 @@ export const PeerLobby: FC = () => {
     navigate(routes.call + '/' + username);
   };
 
+  const handleAudioCallSubmit = () => {
+    navigate(routes.audio_call + '/' + username);
+  };
+
   return (
     <PageMain>
       <Stack direction="column" flexGrow={1} gap={4} alignItems="center" justifyContent="center">
@@ -95,6 +99,16 @@ export const PeerLobby: FC = () => {
                 }}
               >
                 Создать звонок
+              </Button>
+
+              <Button
+                variant="outlined"
+                disabled={!username}
+                onClick={() => {
+                  handleAudioCallSubmit();
+                }}
+              >
+                Создать аудиозвонок
               </Button>
             </Stack>
           </Card>
