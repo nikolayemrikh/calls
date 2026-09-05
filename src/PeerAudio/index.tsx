@@ -9,6 +9,7 @@ import { playMediaElement } from '@app/core/media/playMediaElement';
 import { useAudioDevices } from '@app/core/media/useAudioDevices';
 import { getIceServers } from '@app/core/peer/getIceServers';
 import { getPeerId } from '@app/core/peer/getPeerId';
+import { getUsernameFromPeerId } from '@app/core/peer/getUsernameFromPeerId';
 import { Mic, MicOff, Settings } from '@mui/icons-material';
 import { Button, Card, Stack, Typography } from '@mui/material';
 import { captureException } from '@sentry/react';
@@ -38,6 +39,7 @@ export const PeerAudio: FC = () => {
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const activeConnectionRef = useRef<MediaConnection | null>(null);
+  const [otherUserName, setOtherUserName] = useState<string | null>(null);
 
   const handleNewConnection = useCallback((connection: MediaConnection) => {
     activeConnectionRef.current = connection;
@@ -47,6 +49,7 @@ export const PeerAudio: FC = () => {
       const audio = audioRef.current!;
       audio.srcObject = stream;
       setIsOtherUserConnected(true);
+      setOtherUserName(connection.peer);
       setIsPlaybackBlocked(!(await playMediaElement(audio)));
     });
     connection.on('close', () => {
@@ -57,6 +60,7 @@ export const PeerAudio: FC = () => {
       }
       console.debug('media connection closed', connection.peer);
       setIsOtherUserConnected(false);
+      setOtherUserName(null);
     });
     connection.on('error', (err) => {
       captureException(new Error(`Media connection error: ${err.message}`), {
@@ -69,6 +73,7 @@ export const PeerAudio: FC = () => {
       }
       console.debug('media connection error', connection.peer);
       setIsOtherUserConnected(false);
+      setOtherUserName(null);
     });
   }, []);
 
@@ -411,6 +416,9 @@ export const PeerAudio: FC = () => {
           <Typography variant="h5" textAlign="center">
             Аудиозвонок идёт
           </Typography>
+          {otherUserName && (
+            <Typography variant="body1">Собеседник: {getUsernameFromPeerId(PAGE_PREFIX, otherUserName)}</Typography>
+          )}
           {isPlaybackBlocked && (
             <Button
               variant="contained"
