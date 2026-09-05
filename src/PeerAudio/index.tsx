@@ -462,7 +462,7 @@ export const PeerAudio: FC = () => {
             </Stack>
           ) : (
             <Typography variant="body1" textAlign="center">
-              Подключение...
+              Ждём пока кто-нибудь подключится...
             </Typography>
           )}
         </Stack>
