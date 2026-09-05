@@ -1,12 +1,15 @@
+import { SettingsDialog } from '@app/components/SettingsDialog';
 import { ELocalStorageKey } from '@app/core/localStorage/constants';
 import { EMediaErrorKind, EMediaKind } from '@app/core/media/enums';
+import { getDefaultAudioOutputDeviceId } from '@app/core/media/getDefaultAudioOutputDeviceId';
 import { getMediaErrorKind, isMediaErrorFatal } from '@app/core/media/getMediaErrorKind';
 import { getMediaErrorMessage } from '@app/core/media/getMediaErrorMessage';
 import { getUserMedia } from '@app/core/media/getUserMedia';
 import { playMediaElement } from '@app/core/media/playMediaElement';
+import { useAudioDevices } from '@app/core/media/useAudioDevices';
 import { getIceServers } from '@app/core/peer/getIceServers';
 import { getPeerId } from '@app/core/peer/getPeerId';
-import { Mic, MicOff } from '@mui/icons-material';
+import { Mic, MicOff, Settings } from '@mui/icons-material';
 import { Button, Card, IconButton, Stack, Typography } from '@mui/material';
 import { captureException } from '@sentry/react';
 import copy from 'copy-to-clipboard';
@@ -74,11 +77,22 @@ export const PeerAudio: FC = () => {
   const [mediaErrorKind, setMediaErrorKind] = useState<EMediaErrorKind | null>(null);
   const [isMediaRequestPaused, setIsMediaRequestPaused] = useState(false);
 
+  const [isMicrophoneEnabled, setIsMicrophoneEnabled] = useState(false);
+  const isMicrophoneEnabledRef = useRef(isMicrophoneEnabled);
+
+  useEffect(() => {
+    isMicrophoneEnabledRef.current = isMicrophoneEnabled;
+  }, [isMicrophoneEnabled]);
+
   const localStream = useMemo(() => new MediaStream(), []);
 
   const applyTrack = useCallback(
     async (track: MediaStreamTrack) => {
       const { kind } = track;
+
+      // Свежий трек всегда приходит с enabled === true, так что смена микрофона
+      // включила бы звук в обход кнопки мьюта.
+      if (kind === 'audio') track.enabled = isMicrophoneEnabledRef.current;
 
       const connection = activeConnectionRef.current;
       if (connection) {
@@ -262,8 +276,6 @@ export const PeerAudio: FC = () => {
     };
   }, [applyTrack, localStream, isMediaRequestPaused]);
 
-  const [isMicrophoneEnabled, setIsMicrophoneEnabled] = useState(false);
-
   useEffect(() => {
     if (!mediaStream) return;
 
@@ -271,6 +283,65 @@ export const PeerAudio: FC = () => {
       track.enabled = isMicrophoneEnabled;
     }
   }, [mediaStream, isMicrophoneEnabled]);
+
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [audioInputDeviceId, setAudioInputDeviceId] = useState<string | null>(null);
+  const [audioOutputDeviceId, setAudioOutputDeviceId] = useState<string | null>(null);
+
+  const { inputs: audioInputDevices, outputs: audioOutputDevices } = useAudioDevices(mediaStream !== null);
+
+  useEffect(() => {
+    if (!audioInputDeviceId || !mediaStream) return;
+
+    const currentTrack = mediaStream.getAudioTracks()[0];
+    if (currentTrack?.getSettings().deviceId === audioInputDeviceId) return;
+
+    let isCleaned = false;
+
+    const applyDevice = async () => {
+      let ms: MediaStream;
+      try {
+        ms = await getUserMedia({ video: false, audio: { deviceId: { exact: audioInputDeviceId } } });
+      } catch (error) {
+        captureException(new Error(`Failed to switch microphone: ${getMediaErrorKind(error)}`), {
+          extra: { deviceId: audioInputDeviceId },
+        });
+        return;
+      }
+
+      const track = ms.getAudioTracks()[0];
+      if (isCleaned || !track) {
+        for (const acquiredTrack of ms.getTracks()) acquiredTrack.stop();
+        return;
+      }
+
+      await applyTrack(track);
+    };
+
+    applyDevice();
+
+    return () => {
+      isCleaned = true;
+    };
+  }, [audioInputDeviceId, mediaStream, applyTrack]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio?.setSinkId) return;
+    if (!audioOutputDeviceId) return;
+
+    const setId = async () => {
+      try {
+        await audio.setSinkId(audioOutputDeviceId);
+      } catch (error) {
+        captureException(new Error(`Failed to set audio output device: ${String(error)}`), {
+          extra: { deviceId: audioOutputDeviceId },
+        });
+      }
+    };
+
+    setId();
+  }, [audioOutputDeviceId]);
 
   useEffect(() => {
     if (!peer || !mediaStream) return;
@@ -298,6 +369,11 @@ export const PeerAudio: FC = () => {
   }, [peer, mediaStream, hostUsername, currentUsername, handleNewConnection, isOtherUserConnected]);
 
   const mediaErrorMessage = mediaErrorKind ? getMediaErrorMessage(mediaErrorKind, EMediaKind.audio) : null;
+
+  const currentAudioInputDeviceId =
+    audioInputDeviceId || mediaStream?.getAudioTracks()[0]?.getSettings().deviceId || null;
+
+  const currentAudioOutputDeviceId = audioOutputDeviceId ?? getDefaultAudioOutputDeviceId(audioOutputDevices);
 
   return (
     <Stack direction="column" flexGrow={1} gap={2} height="100%" position="relative">
@@ -398,7 +474,28 @@ export const PeerAudio: FC = () => {
         <Typography variant="body2" textAlign="center">
           {isMicrophoneEnabled ? 'Микрофон включён' : 'Микрофон выключен'}
         </Typography>
+        <Button
+          startIcon={<Settings />}
+          onClick={() => {
+            setIsSettingsOpen(true);
+          }}
+        >
+          Настройки
+        </Button>
       </Stack>
+
+      <SettingsDialog
+        isOpen={isSettingsOpen}
+        onClose={() => {
+          setIsSettingsOpen(false);
+        }}
+        audioInputDevices={audioInputDevices}
+        audioOutputDevices={audioOutputDevices}
+        audioInputDeviceId={currentAudioInputDeviceId}
+        onAudioInputDeviceIdChange={setAudioInputDeviceId}
+        audioOutputDeviceId={currentAudioOutputDeviceId}
+        onAudioOutputDeviceIdChange={setAudioOutputDeviceId}
+      />
     </Stack>
   );
 };
