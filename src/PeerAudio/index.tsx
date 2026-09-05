@@ -10,7 +10,7 @@ import { useAudioDevices } from '@app/core/media/useAudioDevices';
 import { getIceServers } from '@app/core/peer/getIceServers';
 import { getPeerId } from '@app/core/peer/getPeerId';
 import { Mic, MicOff, Settings } from '@mui/icons-material';
-import { Button, Card, IconButton, Stack, Typography } from '@mui/material';
+import { Button, Card, Stack, Typography } from '@mui/material';
 import { captureException } from '@sentry/react';
 import copy from 'copy-to-clipboard';
 import Peer, { MediaConnection } from 'peerjs';
@@ -461,19 +461,17 @@ export const PeerAudio: FC = () => {
       )}
 
       <Stack direction="column" alignItems="center" gap={1} paddingBottom={4}>
-        <IconButton
+        <Button
           disabled={!mediaStream}
-          color={isMicrophoneEnabled ? 'primary' : 'default'}
+          variant={isMicrophoneEnabled ? 'contained' : 'outlined'}
           onClick={() => {
             setIsMicrophoneEnabled((c) => !c);
           }}
-          sx={{ width: 64, height: 64, border: 1, borderColor: 'divider' }}
+          startIcon={isMicrophoneEnabled ? <Mic /> : <MicOff />}
         >
-          {isMicrophoneEnabled ? <Mic /> : <MicOff />}
-        </IconButton>
-        <Typography variant="body2" textAlign="center">
           {isMicrophoneEnabled ? 'Микрофон включён' : 'Микрофон выключен'}
-        </Typography>
+        </Button>
+        <Typography variant="body2" textAlign="center"></Typography>
         <Button
           startIcon={<Settings />}
           onClick={() => {

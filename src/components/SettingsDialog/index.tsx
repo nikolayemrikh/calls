@@ -25,8 +25,6 @@ type TProps = {
 
 const getDeviceLabel = (device: MediaDeviceInfo, index: number) => device.label || `Устройство ${index + 1}`;
 
-// MUI не умеет показывать значение, которого нет среди пунктов: пока список не загрузился
-// или устройство отключили, поле должно быть пустым, а не подсвечивать несуществующий выбор.
 const getSelectValue = (devices: MediaDeviceInfo[], deviceId: string | null) =>
   devices.some((device) => device.deviceId === deviceId) ? (deviceId ?? '') : '';
 
