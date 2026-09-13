@@ -145,6 +145,7 @@ export const PeerVideo: FC = () => {
         secure: true,
         config: {
           iceServers: getIceServers(),
+          debug: 3,
         },
       });
 
