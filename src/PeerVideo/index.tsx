@@ -4,8 +4,8 @@ import { getMediaErrorKind, isMediaErrorFatal } from '@app/core/media/getMediaEr
 import { getMediaErrorMessage } from '@app/core/media/getMediaErrorMessage';
 import { getUserMedia } from '@app/core/media/getUserMedia';
 import { playMediaElement } from '@app/core/media/playMediaElement';
-import { getIceServers } from '@app/core/peer/getIceServers';
 import { getPeerId } from '@app/core/peer/getPeerId';
+import { getRTCConfig } from '@app/core/peer/getRTCConfig';
 import { FlipCameraIos } from '@mui/icons-material';
 import { Button, Card, IconButton, Stack, Typography } from '@mui/material';
 import { captureException } from '@sentry/react';
@@ -143,11 +143,7 @@ export const PeerVideo: FC = () => {
         host: import.meta.env.VITE_PEERJS_SERVER_HOST,
         port: Number(import.meta.env.VITE_PEERJS_SERVER_PORT),
         secure: true,
-        config: {
-          iceServers: getIceServers(),
-          debug: 3,
-          iceTransportPolicy: 'relay',
-        } satisfies RTCConfiguration & Record<string, unknown>,
+        config: getRTCConfig(),
       });
 
       peer.on('open', () => {

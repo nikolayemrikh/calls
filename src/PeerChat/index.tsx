@@ -1,7 +1,7 @@
 import { PageMain } from '@app/components/PageMain';
 import { ELocalStorageKey } from '@app/core/localStorage/constants';
-import { getIceServers } from '@app/core/peer/getIceServers';
 import { getPeerId } from '@app/core/peer/getPeerId';
+import { getRTCConfig } from '@app/core/peer/getRTCConfig';
 import SendIcon from '@mui/icons-material/Send';
 import { Button, Stack, TextField, Typography } from '@mui/material';
 import { produce } from 'immer';
@@ -96,9 +96,7 @@ export const PeerChat: FC = () => {
       host: import.meta.env.VITE_PEERJS_SERVER_HOST,
       port: Number(import.meta.env.VITE_PEERJS_SERVER_PORT),
       secure: true,
-      config: {
-        iceServers: getIceServers(),
-      },
+      config: getRTCConfig(),
     });
     peer.on('open', () => {
       setPeer(peer);

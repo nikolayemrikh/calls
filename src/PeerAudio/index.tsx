@@ -7,8 +7,8 @@ import { getMediaErrorMessage } from '@app/core/media/getMediaErrorMessage';
 import { getUserMedia } from '@app/core/media/getUserMedia';
 import { playMediaElement } from '@app/core/media/playMediaElement';
 import { useAudioDevices } from '@app/core/media/useAudioDevices';
-import { getIceServers } from '@app/core/peer/getIceServers';
 import { getPeerId } from '@app/core/peer/getPeerId';
+import { getRTCConfig } from '@app/core/peer/getRTCConfig';
 import { getUsernameFromPeerId } from '@app/core/peer/getUsernameFromPeerId';
 import { Mic, MicOff, Settings } from '@mui/icons-material';
 import { Button, Card, Stack, Typography } from '@mui/material';
@@ -163,9 +163,7 @@ export const PeerAudio: FC = () => {
         host: import.meta.env.VITE_PEERJS_SERVER_HOST,
         port: Number(import.meta.env.VITE_PEERJS_SERVER_PORT),
         secure: true,
-        config: {
-          iceServers: getIceServers(),
-        },
+        config: getRTCConfig(),
       });
 
       peer.on('open', () => {
