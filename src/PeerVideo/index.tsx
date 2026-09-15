@@ -146,7 +146,8 @@ export const PeerVideo: FC = () => {
         config: {
           iceServers: getIceServers(),
           debug: 3,
-        },
+          iceTransportPolicy: 'relay',
+        } satisfies RTCConfiguration & Record<string, unknown>,
       });
 
       peer.on('open', () => {
