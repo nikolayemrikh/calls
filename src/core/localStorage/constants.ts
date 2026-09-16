@@ -7,4 +7,5 @@ export const ELocalStorageKey = {
   Chats: 'chats',
   VideoRooms: 'video_rooms',
   PreviousCallsUsernames: 'prev_calls_usernames',
+  MicrophoneEnabled: 'microphone_enabled',
 } as const;

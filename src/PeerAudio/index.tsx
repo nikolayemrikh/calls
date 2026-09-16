@@ -82,7 +82,7 @@ export const PeerAudio: FC = () => {
   const [mediaErrorKind, setMediaErrorKind] = useState<EMediaErrorKind | null>(null);
   const [isMediaRequestPaused, setIsMediaRequestPaused] = useState(false);
 
-  const [isMicrophoneEnabled, setIsMicrophoneEnabled] = useState(false);
+  const [isMicrophoneEnabled, setIsMicrophoneEnabled] = useState(!!ELocalStorageKey.MicrophoneEnabled);
   const isMicrophoneEnabledRef = useRef(isMicrophoneEnabled);
 
   useEffect(() => {
@@ -472,6 +472,11 @@ export const PeerAudio: FC = () => {
           variant={isMicrophoneEnabled ? 'contained' : 'outlined'}
           onClick={() => {
             setIsMicrophoneEnabled((c) => !c);
+            if (isMicrophoneEnabled) {
+              localStorage.removeItem(ELocalStorageKey.MicrophoneEnabled);
+            } else {
+              localStorage.setItem(ELocalStorageKey.MicrophoneEnabled, 'true');
+            }
           }}
           startIcon={isMicrophoneEnabled ? <Mic /> : <MicOff />}
         >
