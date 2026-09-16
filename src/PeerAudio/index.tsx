@@ -290,8 +290,22 @@ export const PeerAudio: FC = () => {
   }, [mediaStream, isMicrophoneEnabled]);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [audioInputDeviceId, setAudioInputDeviceId] = useState<string | null>(null);
-  const [audioOutputDeviceId, setAudioOutputDeviceId] = useState<string | null>(null);
+  const [audioInputDeviceId, setAudioInputDeviceId] = useState<string | null>(() =>
+    localStorage.getItem(ELocalStorageKey.AudioInputDeviceId)
+  );
+  const [audioOutputDeviceId, setAudioOutputDeviceId] = useState<string | null>(() =>
+    localStorage.getItem(ELocalStorageKey.AudioOutputDeviceId)
+  );
+
+  const handleAudioInputDeviceIdChange = useCallback((deviceId: string) => {
+    localStorage.setItem(ELocalStorageKey.AudioInputDeviceId, deviceId);
+    setAudioInputDeviceId(deviceId);
+  }, []);
+
+  const handleAudioOutputDeviceIdChange = useCallback((deviceId: string) => {
+    localStorage.setItem(ELocalStorageKey.AudioOutputDeviceId, deviceId);
+    setAudioOutputDeviceId(deviceId);
+  }, []);
 
   const { inputs: audioInputDevices, outputs: audioOutputDevices } = useAudioDevices(mediaStream !== null);
 
@@ -311,6 +325,9 @@ export const PeerAudio: FC = () => {
         captureException(new Error(`Failed to switch microphone: ${getMediaErrorKind(error)}`), {
           extra: { deviceId: audioInputDeviceId },
         });
+        // Сохранённого микрофона может уже не быть — забываем его, чтобы остаться на устройстве по умолчанию.
+        localStorage.removeItem(ELocalStorageKey.AudioInputDeviceId);
+        if (!isCleaned) setAudioInputDeviceId(null);
         return;
       }
 
@@ -342,6 +359,9 @@ export const PeerAudio: FC = () => {
         captureException(new Error(`Failed to set audio output device: ${String(error)}`), {
           extra: { deviceId: audioOutputDeviceId },
         });
+        // Сохранённый динамик мог исчезнуть — откатываемся на устройство по умолчанию.
+        localStorage.removeItem(ELocalStorageKey.AudioOutputDeviceId);
+        setAudioOutputDeviceId(null);
       }
     };
 
@@ -502,9 +522,9 @@ export const PeerAudio: FC = () => {
         audioInputDevices={audioInputDevices}
         audioOutputDevices={audioOutputDevices}
         audioInputDeviceId={currentAudioInputDeviceId}
-        onAudioInputDeviceIdChange={setAudioInputDeviceId}
+        onAudioInputDeviceIdChange={handleAudioInputDeviceIdChange}
         audioOutputDeviceId={currentAudioOutputDeviceId}
-        onAudioOutputDeviceIdChange={setAudioOutputDeviceId}
+        onAudioOutputDeviceIdChange={handleAudioOutputDeviceIdChange}
       />
     </Stack>
   );
